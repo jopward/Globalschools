@@ -1,0 +1,65 @@
+<div class="container mt-4 header-row">
+    <div class="d-flex justify-content-between mb-3 align-items-center">
+        <div id="today">
+            {{ today }}
+        </div>
+
+        <div>
+            <label>الصف:</label>
+            <select id="classSelect" class="form-select d-inline-block w-auto">
+                <option value="">اختر صف</option>
+                {% for c in classes %}
+                <option value="{{ c }}">{{ c }}</option>
+                {% endfor %}
+            </select>
+
+            <label>الشعبة:</label>
+            <select id="sectionSelect" class="form-select d-inline-block w-auto">
+                <option value="">اختر شعبة</option>
+                {% for s in sections %}
+                <option value="{{ s }}">{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <table class="table table-bordered text-center" id="attendanceTable">
+        <thead class="table-light sticky-top">
+            <tr>
+                <th style="width:40px">#</th> <!-- عمود الترقيم -->
+                <th>اسم الطالب</th>
+                <th>حاضر</th>
+                <th>متأخر</th>
+                <th>غائب</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for student in students|sort(attribute='student_name') %}
+            <tr data-class="{{ student.class_name }}" data-section="{{ student.section }}">
+                <td class="row-number"></td> <!-- خلية الترقيم -->
+                <td>{{ student.student_name }}</td>
+                <td>
+                    <input type="checkbox" class="attendance-checkbox" 
+                           data-student-id="{{ student.id }}" 
+                           data-status="present" 
+                           {% if student.status == 'present' %}checked{% endif %}>
+                </td>
+                <td>
+                    <input type="checkbox" class="attendance-checkbox" 
+                           data-student-id="{{ student.id }}" 
+                           data-status="late" 
+                           {% if student.status == 'late' %}checked{% endif %}>
+                </td>
+                <td>
+                    <input type="checkbox" class="attendance-checkbox" 
+                           data-student-id="{{ student.id }}" 
+                           data-status="absent" 
+                           {% if student.status == 'absent' %}checked{% endif %}>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script src="{{ url_for('static', filename='js/attendance_table.js') }}"></script>

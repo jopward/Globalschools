@@ -1,18 +1,6 @@
-# db_setup.py
-import psycopg2
-from psycopg2.extras import RealDictCursor
+# db/db_setup.p
+from .db_connection import get_connection
 from werkzeug.security import generate_password_hash
-
-DB_CONFIG = {
-    "dbname": "schoolsdb",
-    "user": "u0_a223",
-    "password": "your_password",
-    "host": "localhost",
-    "port": "5432"
-}
-
-def get_connection():
-    return psycopg2.connect(**DB_CONFIG, cursor_factory=RealDictCursor)
 
 def create_tables():
     conn = get_connection()
@@ -28,14 +16,14 @@ def create_tables():
     );
     """)
 
-    # --- جدول المستخدمين (سوبرأدمن، مدراء، معلمين) ---
+    # --- جدول المستخدمين ---
     cur.execute("""
     CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
         username TEXT NOT NULL UNIQUE,
         password TEXT NOT NULL,
-        role TEXT NOT NULL,  -- superadmin / admin / teacher
+        role TEXT NOT NULL,
         school_id INTEGER REFERENCES schools(id)
     );
     """)

@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template
 from routes.user import user_bp
 from routes.students import student_bp
 from routes.teachers import teacher_bp
@@ -9,7 +9,8 @@ from routes.attendance import attendance_bp
 from routes.grades import grades_bp
 from routes.tracking import tracking_bp
 
-app = Flask(__name__)
+# لاحظ: خلي template_folder يشير إلى مجلد templates
+app = Flask(__name__, template_folder="templates")
 
 # --- تسجيل Blueprints ---
 app.register_blueprint(user_bp, url_prefix='/users')
@@ -21,6 +22,17 @@ app.register_blueprint(classes_bp, url_prefix='/classes')
 app.register_blueprint(attendance_bp, url_prefix='/attendance')
 app.register_blueprint(grades_bp, url_prefix='/grades')
 app.register_blueprint(tracking_bp, url_prefix='/tracking')
+
+# --- صفحة Smart ---
+@app.route("/smart")
+def smart_page():
+    return render_template("smart.html")
+
+# --- صفحة Dashboard (عشان navbar.html ما يطلع خطأ) ---
+@app.route("/")
+@app.route("/dashboard")
+def dashboard():
+    return render_template("smart.html")
 
 # --- Route اختبارية عامة ---
 @app.route('/test_all')
