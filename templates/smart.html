@@ -2,205 +2,245 @@
 {% include 'partials/navbar.html' %}
 
 <div class="wrapper d-flex flex-column min-vh-100">
-    <main class="flex-fill container my-3">
-        <style>
-        body { margin:0; padding:0; font-family: Arial, sans-serif; overflow-x:hidden; }
-        .table-container { width:100%; max-height: calc(100vh - 250px); overflow-y:auto; border:1px solid #dee2e6; }
-        .tabs { margin-bottom: 1rem; }
-        .tab-btn { margin-right: 0.25rem; }
-        .sticky-col { position: sticky; left:0; background:#f8f9fa; z-index:5; }
-        .sticky-col:first-child { z-index:6; }
-        td.editable { cursor: text; }
-        </style>
+  <main class="flex-fill container my-3">
+    <style>
+      body { margin:0; padding:0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow-x:hidden; }
+      .table-container { width:100%; max-height: calc(100vh - 250px); overflow-y:auto; border:1px solid #dee2e6; border-radius:5px; }
+      
+      /* تبويبات على شكل أوراق إكسل حديثة */
+      .tabs {
+        display: flex;
+        align-items: center;
+        border-bottom: 2px solid #ccc;
+        background: #f5f5f5;
+        padding: 5px;
+        margin-bottom: 5px;
+      }
+      .tab-btn {
+        padding: 6px 16px;
+        margin-right: 2px;
+        border: 1px solid #ccc;
+        border-bottom: none;
+        background: #e9ecef;
+        cursor: pointer;
+        border-radius: 5px 5px 0 0;
+        font-weight: 500;
+        transition: background 0.2s;
+      }
+      .tab-btn.active {
+        background: #fff;
+        font-weight: 600;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      .tabs .btn-success {
+        margin-left: auto;
+        border-radius: 50%;
+        padding: 4px 10px;
+        font-weight: bold;
+      }
 
-        <!-- تبويبات الصفحات -->
-        <div class="tabs">
-            {% for page in smart_pages %}
-            <button class="btn btn-sm btn-outline-primary tab-btn" onclick="showTab('{{ page }}')">{{ page }}</button>
-            {% endfor %}
-            <button class="btn btn-sm btn-success tab-btn" onclick="addSmartTab()">+</button>
+      /* أزرار التحكم فوق الجدول */
+      .table-actions {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 4px;
+      }
+      .table-actions button {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+
+      /* Sticky header + أول عمودين */
+      .table thead th {
+        position: sticky;
+        top: 0;
+        background: #f8f9fa;
+        z-index: 10;
+      }
+      .sticky-col { position: sticky; background:#fff; }
+      .sticky-col:first-child { left:0; z-index:11; }
+      .sticky-col:nth-child(2) { left:40px; z-index:11; }
+
+      td.editable { cursor: text; }
+    </style>
+
+    <!-- تبويبات الصفحات -->
+    <div class="tabs">
+      {% for page in smart_pages %}
+      <button class="tab-btn {{ 'active' if loop.first else '' }}" onclick="showTab('{{ page }}')">{{ page }}</button>
+      {% endfor %}
+      <button class="btn btn-sm btn-success" onclick="addSmartTab()">+</button>
+    </div>
+
+    <!-- محتوى الصفحات -->
+    <div id="tabsContent">
+      {% for page in smart_pages %}
+      <div class="tab-page" id="{{ page }}" style="display: {{ 'block' if loop.first else 'none' }};">
+
+        <!-- أزرار التحكم فوق الجدول -->
+        <div class="table-actions">
+          <button class="btn btn-sm btn-danger" onclick="deleteCurrentTab('{{ page }}')">🗑</button>
+          <button class="btn btn-sm btn-primary" onclick="addColumn('{{ page }}')">➕</button>
+          <button class="btn btn-sm btn-warning" onclick="deleteColumn('{{ page }}')">➖</button>
         </div>
 
-        <!-- محتوى الصفحات -->
-        <div id="tabsContent">
-            {% for page in smart_pages %}
-            <div class="tab-page" id="{{ page }}" style="display: {{ 'block' if loop.first else 'none' }};">
-                <button class="btn btn-sm btn-danger mb-2" onclick="deleteCurrentTab('{{ page }}')">حذف الصفحة</button>
-                <button class="btn btn-sm btn-primary mb-2" onclick="addColumn('{{ page }}')">إضافة عمود جديد</button>
-                <button class="btn btn-sm btn-warning mb-2" onclick="deleteColumn('{{ page }}')">حذف آخر عمود</button>
-
-                <div class="table-container">
-                    <table class="table table-bordered" id="table_{{ page }}">
-                        <thead class="table-light">
-                            <tr>
-                                <th class="sticky-col">#</th>
-                                <th class="sticky-col">الاسم</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for student in students %}
-                            <tr>
-                                <td class="row-number">{{ loop.index }}</td>
-                                <td>{{ student.student_name }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            {% endfor %}
+        <!-- الجدول -->
+        <div class="table-container">
+          <table class="table table-bordered" id="table_{{ page }}">
+            <thead class="table-light">
+              <tr>
+                <th class="sticky-col" style="width:40px">#</th>
+                <th class="sticky-col">الاسم</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for student in students %}
+              <tr>
+                <td class="row-number">{{ loop.index }}</td>
+                <td>{{ student.student_name }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
-
-    </main>
-    {% include 'partials/footer.html' %}
+      </div>
+      {% endfor %}
+    </div>
+  </main>
+  {% include 'partials/footer.html' %}
 </div>
 
 <script>
 let smartPages = {{ smart_pages|tojson }};
 let pageCount = smartPages.length;
-let pageData = {}; // بيانات كل صفحة
+let pageData = {};
 
 // تهيئة البيانات لكل صفحة عند التحميل
 smartPages.forEach(page => {
-    const table = document.getElementById(`table_${page}`);
-    pageData[page] = {
-        columns: ["#", "الاسم"],
-        rows: Array.from(table.querySelectorAll('tbody tr')).map(tr =>
-            Array.from(tr.children).map(td => td.textContent)
-        )
-    };
+  const table = document.getElementById(`table_${page}`);
+  pageData[page] = {
+    columns: ["#", "الاسم"],
+    rows: Array.from(table.querySelectorAll('tbody tr')).map(tr =>
+      Array.from(tr.children).map(td => td.textContent)
+    )
+  };
 });
 
 // عرض تبويب
 function showTab(pageId){
-    document.querySelectorAll('.tab-page').forEach(div => div.style.display='none');
-    document.getElementById(pageId).style.display='block';
-    renderTable(pageId);
+  document.querySelectorAll('.tab-page').forEach(div => div.style.display='none');
+  document.getElementById(pageId).style.display='block';
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(btn => { if(btn.textContent===pageId) btn.classList.add('active'); });
+  renderTable(pageId);
 }
 
 // إعادة رسم الجدول
 function renderTable(pageId){
-    const table = document.getElementById(`table_${pageId}`);
-    const data = pageData[pageId];
+  const table = document.getElementById(`table_${pageId}`);
+  const data = pageData[pageId];
 
-    // إعادة بناء الرأس
-    const theadRow = table.querySelector('thead tr');
-    theadRow.innerHTML = '';
-    data.columns.forEach((col, idx) => {
-        const th = document.createElement('th');
-        th.textContent = col;
-        if(idx<2) th.className='sticky-col';
-        theadRow.appendChild(th);
-    });
+  const theadRow = table.querySelector('thead tr');
+  theadRow.innerHTML = '';
+  data.columns.forEach((col, idx) => {
+    const th = document.createElement('th');
+    th.textContent = col;
+    if(idx<2) th.className='sticky-col';
+    theadRow.appendChild(th);
+  });
 
-    // إعادة بناء الجسم
-    const tbody = table.querySelector('tbody');
-    tbody.innerHTML = '';
-    data.rows.forEach((rowCells, idx) => {
-        const tr = document.createElement('tr');
-        rowCells.forEach((cell, cidx) => {
-            const td = document.createElement('td');
-            td.textContent = cell;
-            if(cidx>1) { 
-                td.className='editable';
-                td.contentEditable = true;
-                td.oninput = () => saveCellData(pageId);
-            }
-            tr.appendChild(td);
-        });
-        tbody.appendChild(tr);
+  const tbody = table.querySelector('tbody');
+  tbody.innerHTML = '';
+  data.rows.forEach((rowCells) => {
+    const tr = document.createElement('tr');
+    rowCells.forEach((cell, cidx) => {
+      const td = document.createElement('td');
+      td.textContent = cell;
+      if(cidx>1){ td.className='editable'; td.contentEditable=true; td.oninput=()=>saveCellData(pageId); }
+      tr.appendChild(td);
     });
+    tbody.appendChild(tr);
+  });
 }
 
-// حفظ محتوى الصفحة في pageData
+// حفظ
 function saveCellData(pageId){
-    const table = document.getElementById(`table_${pageId}`);
-    pageData[pageId].rows = Array.from(table.querySelectorAll('tbody tr')).map(tr =>
-        Array.from(tr.children).map(td => td.textContent)
-    );
+  const table = document.getElementById(`table_${pageId}`);
+  pageData[pageId].rows = Array.from(table.querySelectorAll('tbody tr')).map(tr =>
+    Array.from(tr.children).map(td => td.textContent)
+  );
 }
 
 // إضافة صفحة جديدة
 function addSmartTab(){
-    pageCount++;
-    const newPage = `Smart ${pageCount}`;
-    smartPages.push(newPage);
+  pageCount++;
+  const newPage = `Smart ${pageCount}`;
+  smartPages.push(newPage);
 
-    // إنشاء زر تبويب
-    const btn = document.createElement('button');
-    btn.className = 'btn btn-sm btn-outline-primary tab-btn';
-    btn.textContent = newPage;
-    btn.onclick = () => showTab(newPage);
-    document.querySelector('.tabs').insertBefore(btn, document.querySelector('.tabs button.btn-success'));
+  const btn = document.createElement('button');
+  btn.className='tab-btn';
+  btn.textContent=newPage;
+  btn.onclick=()=>showTab(newPage);
+  document.querySelector('.tabs').insertBefore(btn, document.querySelector('.tabs button.btn-success'));
 
-    // إنشاء div جديد للصفحة
-    const div = document.createElement('div');
-    div.className='tab-page';
-    div.id=newPage;
-    div.style.display='none';
-    let tbodyHtml = '';
-    {% for student in students %}
-    tbodyHtml += `<tr><td class="row-number">{{ loop.index }}</td><td>{{ student.student_name }}</td></tr>`;
-    {% endfor %}
-    div.innerHTML = `
-        <button class="btn btn-sm btn-danger mb-2" onclick="deleteCurrentTab('${newPage}')">حذف الصفحة</button>
-        <button class="btn btn-sm btn-primary mb-2" onclick="addColumn('${newPage}')">إضافة عمود جديد</button>
-        <button class="btn btn-sm btn-warning mb-2" onclick="deleteColumn('${newPage}')">حذف آخر عمود</button>
-        <div class="table-container">
-            <table class="table table-bordered" id="table_${newPage}">
-                <thead class="table-light"><tr><th class="sticky-col">#</th><th class="sticky-col">الاسم</th></tr></thead>
-                <tbody>${tbodyHtml}</tbody>
-            </table>
-        </div>`;
-    document.getElementById('tabsContent').appendChild(div);
+  const div = document.createElement('div');
+  div.className='tab-page';
+  div.id=newPage;
+  div.style.display='none';
+  let tbodyHtml='';
+  {% for student in students %}
+  tbodyHtml += `<tr><td class="row-number">{{ loop.index }}</td><td>{{ student.student_name }}</td></tr>`;
+  {% endfor %}
+  div.innerHTML=`
+    <div class="table-actions">
+      <button class="btn btn-sm btn-danger" onclick="deleteCurrentTab('${newPage}')">🗑</button>
+      <button class="btn btn-sm btn-primary" onclick="addColumn('${newPage}')">➕</button>
+      <button class="btn btn-sm btn-warning" onclick="deleteColumn('${newPage}')">➖</button>
+    </div>
+    <div class="table-container">
+      <table class="table table-bordered" id="table_${newPage}">
+        <thead class="table-light"><tr><th class="sticky-col" style="width:40px">#</th><th class="sticky-col">الاسم</th></tr></thead>
+        <tbody>${tbodyHtml}</tbody>
+      </table>
+    </div>`;
+  document.getElementById('tabsContent').appendChild(div);
 
-    // تهيئة البيانات
-    pageData[newPage] = {
-        columns: ["#", "الاسم"],
-        rows: Array.from(div.querySelectorAll('tbody tr')).map(tr => Array.from(tr.children).map(td => td.textContent))
-    };
-
-    showTab(newPage);
+  pageData[newPage] = {
+    columns: ["#", "الاسم"],
+    rows: Array.from(div.querySelectorAll('tbody tr')).map(tr => Array.from(tr.children).map(td => td.textContent))
+  };
+  showTab(newPage);
 }
 
 // حذف الصفحة الحالية
 function deleteCurrentTab(pageId){
-    if(pageId==='Smart 1'){ alert('لا يمكن حذف الصفحة الأولى'); return; }
-
-    // إزالة div الصفحة
-    document.getElementById(pageId).remove();
-    // إزالة زر التبويب
-    document.querySelectorAll('.tabs button').forEach(btn => {
-        if(btn.textContent===pageId) btn.remove();
-    });
-
-    // إزالة البيانات
-    delete pageData[pageId];
-    const idx = smartPages.indexOf(pageId);
-    smartPages.splice(idx,1);
-
-    // عرض الصفحة السابقة أو الأولى
-    const prevPage = smartPages[idx-1] || smartPages[0];
-    showTab(prevPage);
+  if(pageId==='Smart 1'){ alert('لا يمكن حذف الصفحة الأولى'); return; }
+  document.getElementById(pageId).remove();
+  document.querySelectorAll('.tab-btn').forEach(btn => { if(btn.textContent===pageId) btn.remove(); });
+  delete pageData[pageId];
+  const idx = smartPages.indexOf(pageId);
+  smartPages.splice(idx,1);
+  const prevPage = smartPages[idx-1] || smartPages[0];
+  showTab(prevPage);
 }
 
-// إضافة عمود جديد
+// إضافة عمود
 function addColumn(pageId){
-    const colName = prompt("ادخل اسم العمود الجديد:");
-    if(!colName) return;
-
-    const data = pageData[pageId];
-    data.columns.push(colName);
-    data.rows.forEach(row => row.push(""));
-    renderTable(pageId);
+  const colName = prompt("ادخل اسم العمود:");
+  if(!colName) return;
+  const data = pageData[pageId];
+  data.columns.push(colName);
+  data.rows.forEach(row => row.push(""));
+  renderTable(pageId);
 }
 
-// حذف آخر عمود
+// حذف عمود
 function deleteColumn(pageId){
-    const data = pageData[pageId];
-    if(data.columns.length<=2) return;
-    data.columns.pop();
-    data.rows.forEach(row => row.pop());
-    renderTable(pageId);
+  const data = pageData[pageId];
+  if(data.columns.length<=2) return;
+  data.columns.pop();
+  data.rows.forEach(row => row.pop());
+  renderTable(pageId);
 }
 </script>
