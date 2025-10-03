@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session, redirect, url_for, flash
 from models.teacher import (
     create_teacher,
     get_teacher_by_id,
@@ -9,16 +9,35 @@ from models.teacher import (
     filter_teachers_by_school,
     get_teacher_subjects
 )
+from functools import wraps
 
 teacher_bp = Blueprint('teacher_bp', __name__)
+
+# ============================
+# ديكوريتور للتحقق من تسجيل الدخول والصلاحية
+# ============================
+def login_required(role=None):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            user = session.get('user')
+            if not user:
+                flash("يجب تسجيل الدخول أولاً")
+                return redirect(url_for('auth.login'))
+            if role and user.get('role') != role:
+                flash("لا تمتلك صلاحية الوصول لهذه الصفحة")
+                return redirect(url_for('auth.login'))
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
 
 # ============================
 # CRUD للمعلمين
 # ============================
 
 @teacher_bp.route('/teachers', methods=['POST'])
+@login_required(role='admin')  # فقط admin يقدر يضيف معلم
 def add_teacher():
-    """إضافة معلم جديد"""
     data = request.json
     name = data.get('name')
     username = data.get('username')
@@ -33,22 +52,22 @@ def add_teacher():
     return jsonify({"message": "تم إضافة المعلم", "teacher_id": teacher_id})
 
 @teacher_bp.route('/teachers', methods=['GET'])
+@login_required()  # أي مستخدم مسجل دخول يمكنه الوصول
 def list_teachers():
-    """استرجاع جميع المعلمين"""
     teachers = get_all_teachers()
     return jsonify(teachers)
 
 @teacher_bp.route('/teachers/<int:teacher_id>', methods=['GET'])
+@login_required()
 def get_teacher(teacher_id):
-    """استرجاع المعلم حسب ID"""
     teacher = get_teacher_by_id(teacher_id)
     if not teacher:
         return jsonify({"error": "المعلم غير موجود"}), 404
     return jsonify(teacher)
 
 @teacher_bp.route('/teachers/<int:teacher_id>', methods=['PUT'])
+@login_required(role='admin')
 def edit_teacher(teacher_id):
-    """تحديث بيانات المعلم"""
     data = request.json
     updated = update_teacher(
         teacher_id,
@@ -62,8 +81,8 @@ def edit_teacher(teacher_id):
     return jsonify({"error": "فشل التحديث"}), 400
 
 @teacher_bp.route('/teachers/<int:teacher_id>', methods=['DELETE'])
+@login_required(role='admin')
 def remove_teacher(teacher_id):
-    """حذف المعلم"""
     deleted = delete_teacher(teacher_id)
     if deleted:
         return jsonify({"message": "تم حذف المعلم"})
@@ -74,8 +93,8 @@ def remove_teacher(teacher_id):
 # ============================
 
 @teacher_bp.route('/teachers/search', methods=['GET'])
+@login_required()
 def search_teacher():
-    """البحث عن المعلمين بالاسم"""
     keyword = request.args.get('q')
     if not keyword:
         return jsonify({"error": "يرجى إدخال كلمة البحث"}), 400
@@ -83,8 +102,8 @@ def search_teacher():
     return jsonify(teachers)
 
 @teacher_bp.route('/teachers/filter/school', methods=['GET'])
+@login_required()
 def filter_teacher_school():
-    """فلترة المعلمين حسب المدرسة"""
     school_id = request.args.get('school_id')
     if not school_id:
         return jsonify({"error": "يرجى إدخال معرف المدرسة"}), 400
@@ -92,7 +111,7 @@ def filter_teacher_school():
     return jsonify(teachers)
 
 @teacher_bp.route('/teachers/<int:teacher_id>/subjects', methods=['GET'])
+@login_required()
 def teacher_subjects(teacher_id):
-    """استرجاع المواد التي يدرسها المعلم"""
     subjects = get_teacher_subjects(teacher_id)
     return jsonify(subjects)

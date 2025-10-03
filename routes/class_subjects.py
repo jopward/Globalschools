@@ -1,17 +1,37 @@
 # routes/class_subjects.py
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session, redirect, url_for, flash
 from models.class_subjects import (
     add_class_subject, get_class_subject_by_id, get_all_class_subjects,
     update_class_subject, delete_class_subject
 )
+from functools import wraps
 
 class_subjects_bp = Blueprint("class_subjects", __name__, url_prefix="/class_subjects")
+
+# ============================
+# ديكوريتور للتحقق من تسجيل الدخول والصلاحية
+# ============================
+def login_required(role=None):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            user = session.get("user")
+            if not user:
+                flash("يجب تسجيل الدخول أولاً")
+                return redirect(url_for("auth.login"))
+            if role and user.get("role") != role:
+                flash("لا تمتلك صلاحية الوصول لهذه الصفحة")
+                return redirect(url_for("auth.login"))
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
 
 # ============================
 # Routes
 # ============================
 
 @class_subjects_bp.route("/", methods=["GET"])
+@login_required()
 def list_class_subjects():
     """عرض كل الروابط"""
     data = get_all_class_subjects()
@@ -19,6 +39,7 @@ def list_class_subjects():
 
 
 @class_subjects_bp.route("/<int:cs_id>", methods=["GET"])
+@login_required()
 def get_one(cs_id):
     """عرض ربط واحد"""
     item = get_class_subject_by_id(cs_id)
@@ -28,6 +49,7 @@ def get_one(cs_id):
 
 
 @class_subjects_bp.route("/", methods=["POST"])
+@login_required(role="admin")
 def create():
     """إضافة ربط جديد"""
     data = request.json
@@ -38,6 +60,7 @@ def create():
 
 
 @class_subjects_bp.route("/<int:cs_id>", methods=["PUT"])
+@login_required(role="admin")
 def update(cs_id):
     """تحديث ربط"""
     data = request.json
@@ -51,6 +74,7 @@ def update(cs_id):
 
 
 @class_subjects_bp.route("/<int:cs_id>", methods=["DELETE"])
+@login_required(role="admin")
 def delete(cs_id):
     """حذف ربط"""
     delete_class_subject(cs_id)

@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session, redirect, url_for, flash
 from models.classes import (
     create_class,
     get_class_by_id,
@@ -10,16 +10,35 @@ from models.classes import (
     get_class_teachers,
     get_class_subjects
 )
+from functools import wraps
 
 classes_bp = Blueprint('classes_bp', __name__)
+
+# ============================
+# ديكوريتور للتحقق من تسجيل الدخول والصلاحية
+# ============================
+def login_required(role=None):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            user = session.get("user")
+            if not user:
+                flash("يجب تسجيل الدخول أولاً")
+                return redirect(url_for("auth.login"))
+            if role and user.get("role") != role:
+                flash("لا تمتلك صلاحية الوصول لهذه الصفحة")
+                return redirect(url_for("auth.login"))
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
 
 # ============================
 # CRUD للصفوف
 # ============================
 
 @classes_bp.route('/classes', methods=['POST'])
+@login_required(role='admin')
 def add_class():
-    """إضافة صف جديد"""
     data = request.json
     class_name = data.get('class_name')
     section = data.get('section')
@@ -33,22 +52,22 @@ def add_class():
     return jsonify({"message": "تم إضافة الصف", "class_id": class_id})
 
 @classes_bp.route('/classes', methods=['GET'])
+@login_required()
 def list_classes():
-    """استرجاع جميع الصفوف"""
     classes = get_all_classes()
     return jsonify(classes)
 
 @classes_bp.route('/classes/<int:class_id>', methods=['GET'])
+@login_required()
 def get_class(class_id):
-    """استرجاع الصف حسب ID"""
     class_ = get_class_by_id(class_id)
     if not class_:
         return jsonify({"error": "الصف غير موجود"}), 404
     return jsonify(class_)
 
 @classes_bp.route('/classes/<int:class_id>', methods=['PUT'])
+@login_required(role='admin')
 def edit_class(class_id):
-    """تحديث بيانات الصف"""
     data = request.json
     updated = update_class(
         class_id,
@@ -62,8 +81,8 @@ def edit_class(class_id):
     return jsonify({"error": "فشل التحديث"}), 400
 
 @classes_bp.route('/classes/<int:class_id>', methods=['DELETE'])
+@login_required(role='admin')
 def remove_class(class_id):
-    """حذف الصف"""
     deleted = delete_class(class_id)
     if deleted:
         return jsonify({"message": "تم حذف الصف"})
@@ -74,8 +93,8 @@ def remove_class(class_id):
 # ============================
 
 @classes_bp.route('/classes/search', methods=['GET'])
+@login_required()
 def search_class():
-    """البحث عن الصفوف بالاسم"""
     keyword = request.args.get('q')
     if not keyword:
         return jsonify({"error": "يرجى إدخال كلمة البحث"}), 400
@@ -83,8 +102,8 @@ def search_class():
     return jsonify(classes)
 
 @classes_bp.route('/classes/filter/school', methods=['GET'])
+@login_required()
 def filter_class_school():
-    """فلترة الصفوف حسب المدرسة"""
     school_id = request.args.get('school_id')
     if not school_id:
         return jsonify({"error": "يرجى إدخال معرف المدرسة"}), 400
@@ -96,13 +115,13 @@ def filter_class_school():
 # ============================
 
 @classes_bp.route('/classes/<int:class_id>/teachers', methods=['GET'])
+@login_required()
 def class_teachers(class_id):
-    """استرجاع المعلمين المرتبطين بالصف"""
     teachers = get_class_teachers(class_id)
     return jsonify(teachers)
 
 @classes_bp.route('/classes/<int:class_id>/subjects', methods=['GET'])
+@login_required()
 def class_subjects(class_id):
-    """استرجاع المواد المرتبطة بالصف"""
     subjects = get_class_subjects(class_id)
     return jsonify(subjects)

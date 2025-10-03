@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session, redirect, url_for, flash
 from models.school import (
     create_school,
     get_school_by_id,
@@ -8,15 +8,34 @@ from models.school import (
     search_schools_by_name,
     filter_schools_by_admin
 )
+from functools import wraps
 
-# إنشاء Blueprint للموديل
 school_bp = Blueprint('school_bp', __name__)
 
 # ============================
-# Routes CRUD للمدارس
+# ديكوريتور للتحقق من تسجيل الدخول والصلاحية
+# ============================
+def login_required(role=None):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            user = session.get("user")
+            if not user:
+                flash("يجب تسجيل الدخول أولاً")
+                return redirect(url_for("auth.login"))
+            if role and user.get("role") != role:
+                flash("لا تمتلك صلاحية الوصول لهذه الصفحة")
+                return redirect(url_for("auth.login"))
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
+
+# ============================
+# CRUD للمدارس
 # ============================
 
 @school_bp.route('/schools', methods=['POST'])
+@login_required(role="admin")
 def add_school():
     """إضافة مدرسة جديدة"""
     data = request.json
@@ -31,12 +50,14 @@ def add_school():
     return jsonify({"message": "تمت إضافة المدرسة", "school_id": school_id})
 
 @school_bp.route('/schools', methods=['GET'])
+@login_required()
 def get_schools():
     """استرجاع جميع المدارس"""
     schools = get_all_schools()
     return jsonify(schools)
 
 @school_bp.route('/schools/<int:school_id>', methods=['GET'])
+@login_required()
 def get_school(school_id):
     """استرجاع مدرسة حسب الـ ID"""
     school = get_school_by_id(school_id)
@@ -45,6 +66,7 @@ def get_school(school_id):
     return jsonify(school)
 
 @school_bp.route('/schools/<int:school_id>', methods=['PUT'])
+@login_required(role="admin")
 def edit_school(school_id):
     """تحديث بيانات المدرسة"""
     data = request.json
@@ -58,6 +80,7 @@ def edit_school(school_id):
     return jsonify({"error": "فشل تحديث المدرسة"}), 400
 
 @school_bp.route('/schools/<int:school_id>', methods=['DELETE'])
+@login_required(role="admin")
 def remove_school(school_id):
     """حذف مدرسة"""
     deleted = delete_school(school_id)
@@ -66,10 +89,11 @@ def remove_school(school_id):
     return jsonify({"error": "فشل حذف المدرسة"}), 400
 
 # ============================
-# Routes البحث والفلترة
+# البحث والفلترة
 # ============================
 
 @school_bp.route('/schools/search', methods=['GET'])
+@login_required()
 def search_school():
     """البحث عن المدارس بواسطة الاسم"""
     keyword = request.args.get('q')
@@ -79,6 +103,7 @@ def search_school():
     return jsonify(schools)
 
 @school_bp.route('/schools/filter', methods=['GET'])
+@login_required()
 def filter_school():
     """فلترة المدارس حسب اسم المدير"""
     admin_username = request.args.get('admin')

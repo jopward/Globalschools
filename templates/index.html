@@ -1,0 +1,24 @@
+{% include 'header.html' %}
+
+<div class="container mt-5">
+  <h1>مرحباً، {{ user.name }}</h1>
+
+  {% if user.role == 'admin' %}
+    <p>أنت مسؤول النظام</p>
+    <a href="{{ url_for('teacher_bp.list_teachers') }}" class="btn btn-primary">المعلمين</a>
+    <a href="{{ url_for('student_bp.get_students') }}" class="btn btn-primary">الطلاب</a>
+    <a href="{{ url_for('classes_bp.list_classes') }}" class="btn btn-primary">الصفوف</a>
+    <a href="{{ url_for('subjects_bp.route_get_all_subjects') }}" class="btn btn-primary">المواد</a>
+
+  {% elif user.role == 'teacher' %}
+    <p>أنت معلم</p>
+    <a href="{{ url_for('classes_bp.class_teachers', class_id=1) }}" class="btn btn-info">الصفوف والمواد الخاصة بك</a>
+
+  {% else %}
+    <p>أنت طالب</p>
+    <a href="{{ url_for('attendance_bp.route_get_student_attendance', student_id=user.id) }}" class="btn btn-info">عرض الحضور</a>
+    <a href="{{ url_for('grades_bp.route_get_student_grades', student_id=user.id) }}" class="btn btn-info">عرض العلامات</a>
+  {% endif %}
+</div>
+
+{% include 'footer.html' %}
