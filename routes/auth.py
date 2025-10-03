@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from models.user import verify_user, get_user_by_id, create_user  # إضافة create_user
+from models.user import verify_user, get_user_by_id, create_user
+from models.school import get_all_schools
 
 auth_bp = Blueprint('auth_bp', __name__, url_prefix='/auth')
 
@@ -22,7 +23,9 @@ def login():
         session['user_name'] = user['name']
 
         # توجيه المستخدم حسب دوره
-        if user['role'] == 'admin':
+        if user['role'] == 'superadmin':
+            return redirect(url_for('auth_bp.superadmin_page'))
+        elif user['role'] == 'admin':
             return redirect(url_for('dashboard'))
         elif user['role'] == 'teacher':
             return redirect(url_for('dashboard'))
@@ -40,17 +43,30 @@ def logout():
     return redirect(url_for('auth_bp.login'))
 
 
+# --- صفحة Super Admin ---
+@auth_bp.route('/superadmin')
+def superadmin_page():
+    if session.get('user_role') != 'superadmin':
+        flash('لا تمتلك صلاحية الوصول لهذه الصفحة')
+        return redirect(url_for('auth_bp.login'))
+
+    schools = get_all_schools()  # جلب كل المدارس لعرضها في صفحة السوبر أدمن
+    return render_template('superadmin.html', user=session.get('user_name'), schools=schools)
+
+
 # --- صفحة التسجيل (Register) ---
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
+    schools = get_all_schools()  # جلب جميع المدارس لعرضها في الريجستر
     if request.method == 'POST':
         name = request.form['name'].strip()
         username = request.form['username'].strip()
         password = request.form['password'].strip()
         role = request.form['role']  # student أو teacher
+        school_id = request.form.get('school_id')  # اختيار المدرسة
 
         # التحقق من الحقول
-        if not name or not username or not password or not role:
+        if not name or not username or not password or not role or not school_id:
             flash('الرجاء تعبئة جميع الحقول.')
             return redirect(url_for('auth_bp.register'))
 
@@ -61,9 +77,9 @@ def register():
             return redirect(url_for('auth_bp.register'))
 
         # إنشاء المستخدم في قاعدة البيانات
-        user_id = create_user(name, username, password, role)
+        user_id = create_user(name, username, password, role, school_id)
 
         flash('تم إنشاء الحساب بنجاح! يمكنك تسجيل الدخول الآن.')
         return redirect(url_for('auth_bp.login'))
 
-    return render_template('register.html')
+    return render_template('register.html', schools=schools)
