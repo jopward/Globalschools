@@ -14,34 +14,38 @@ from routes.auth import auth_bp  # <-- إضافة auth
 from routes.pages.smart import smart_bp
 
 app = Flask(__name__, template_folder="templates")
-app.secret_key = "YOUR_SECRET_KEY"  # <-- غيره لمفتاح قوي
+app.secret_key = "YOUR_SECRET_KEY"  # <-- استبدل بمفتاح قوي
 
 # --- تسجيل Blueprints ---
-app.register_blueprint(auth_bp, url_prefix='/auth')
+app.register_blueprint(auth_bp)  # auth_bp يحتوي على url_prefix داخلي
 app.register_blueprint(user_bp, url_prefix='/users')
 app.register_blueprint(student_bp, url_prefix='/students')
 app.register_blueprint(teacher_bp, url_prefix='/teachers')
-app.register_blueprint(school_bp, url_prefix='/schools')
+app.register_blueprint(school_bp)  # school_bp يحتوي على endpoints بدون url_prefix
 app.register_blueprint(subjects_bp, url_prefix='/subjects')
 app.register_blueprint(classes_bp, url_prefix='/classes')
 app.register_blueprint(attendance_bp, url_prefix='/attendance')
 app.register_blueprint(grades_bp, url_prefix='/grades')
 app.register_blueprint(tracking_bp, url_prefix='/tracking')
-app.register_blueprint(smart_bp, url_prefix='/smart')  # <-- Smart
+app.register_blueprint(smart_bp, url_prefix='/smart')
 
 # --- Dashboard ديناميكي حسب الدور ---
 @app.route("/")
 @app.route("/dashboard")
 def dashboard():
-    # جلب بيانات المستخدم من الجلسة
     if 'user_id' not in session:
-        return redirect(url_for('auth_bp.login'))  # توجيه لصفحة تسجيل الدخول
+        return redirect(url_for('auth_bp.login'))
 
     user = {
         'id': session.get('user_id'),
         'role': session.get('user_role'),
         'name': session.get('user_name')
     }
+
+    # إذا كان Super Admin حوله مباشرة لصفحة superadmin
+    if user['role'] == 'superadmin':
+        return redirect(url_for('auth_bp.superadmin_page'))
+
     return render_template("dashboard.html", user=user)
 
 # --- صفحة Smart ---

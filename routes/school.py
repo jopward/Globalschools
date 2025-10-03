@@ -19,13 +19,20 @@ def login_required(role=None):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            user = session.get("user")
-            if not user:
+            # التحقق من تسجيل الدخول
+            if 'user_id' not in session:
                 flash("يجب تسجيل الدخول أولاً")
-                return redirect(url_for("auth.login"))
-            if role and user.get("role") != role:
-                flash("لا تمتلك صلاحية الوصول لهذه الصفحة")
-                return redirect(url_for("auth.login"))
+                return redirect(url_for("auth_bp.login"))
+            # التحقق من الدور إذا كان مطلوبًا
+            if role:
+                user_role = session.get("user_role")
+                if isinstance(role, list):
+                    if user_role not in role:
+                        flash("لا تمتلك صلاحية الوصول لهذه الصفحة")
+                        return redirect(url_for("auth_bp.login"))
+                elif user_role != role:
+                    flash("لا تمتلك صلاحية الوصول لهذه الصفحة")
+                    return redirect(url_for("auth_bp.login"))
             return f(*args, **kwargs)
         return wrapper
     return decorator
@@ -35,7 +42,7 @@ def login_required(role=None):
 # ============================
 
 @school_bp.route('/schools', methods=['POST'])
-@login_required(role="admin")
+@login_required(role=["admin", "superadmin"])
 def add_school():
     """إضافة مدرسة جديدة"""
     data = request.json
@@ -66,7 +73,7 @@ def get_school(school_id):
     return jsonify(school)
 
 @school_bp.route('/schools/<int:school_id>', methods=['PUT'])
-@login_required(role="admin")
+@login_required(role=["admin", "superadmin"])
 def edit_school(school_id):
     """تحديث بيانات المدرسة"""
     data = request.json
@@ -80,7 +87,7 @@ def edit_school(school_id):
     return jsonify({"error": "فشل تحديث المدرسة"}), 400
 
 @school_bp.route('/schools/<int:school_id>', methods=['DELETE'])
-@login_required(role="admin")
+@login_required(role=["admin", "superadmin"])
 def remove_school(school_id):
     """حذف مدرسة"""
     deleted = delete_school(school_id)

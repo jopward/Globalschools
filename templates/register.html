@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>إنشاء حساب — نظام الحضور</title>
+    <!-- Bootstrap RTL CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+
+    <style>
+      body {
+        background: linear-gradient(135deg, #f8fafc 0%, #e9f0ff 100%);
+        font-family: 'Cairo', sans-serif;
+      }
+      .register-card {
+        width: 100%;
+        max-width: 500px;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(20,30,60,0.08);
+      }
+      .form-floating > .form-control:focus {
+        box-shadow: none;
+      }
+      .small-muted { font-size: .92rem; color: #6c757d; }
+    </style>
+  </head>
+
+  <body>
+    <main class="d-flex align-items-center justify-content-center min-vh-100">
+      <div class="card register-card p-4">
+        <div class="card-body">
+
+          <h4 class="mb-3 text-center">إنشاء حساب جديد</h4>
+
+          {% with messages = get_flashed_messages() %}
+            {% if messages %}
+              <div class="alert alert-danger py-2" role="alert">
+                {{ messages[0] }}
+              </div>
+            {% endif %}
+          {% endwith %}
+
+          <form method="post" action="{{ url_for('auth_bp.register') }}" novalidate>
+
+            <div class="mb-3 form-floating">
+              <input type="text" class="form-control" id="name" name="name" placeholder="الاسم الكامل" required>
+              <label for="name">الاسم الكامل</label>
+            </div>
+
+            <div class="mb-3 form-floating">
+              <input type="text" class="form-control" id="username" name="username" placeholder="اسم المستخدم" required>
+              <label for="username">اسم المستخدم</label>
+            </div>
+
+            <div class="mb-3 form-floating position-relative">
+              <input type="password" class="form-control" id="password" name="password" placeholder="كلمة المرور" required>
+              <label for="password">كلمة المرور</label>
+              <button type="button" id="togglePassword" class="btn btn-sm btn-light position-absolute" style="top:10px; left:10px;">إظهار</button>
+            </div>
+
+            <div class="mb-3 form-floating">
+              <select class="form-select" id="role" name="role" required>
+                <option value="student" selected>طالب</option>
+                <option value="teacher">معلم</option>
+                <option value="admin">مدير</option>
+              </select>
+              <label for="role">الدور</label>
+            </div>
+
+            <div class="mb-3 form-floating">
+              <input type="text" class="form-control" id="school_id" name="school_id" placeholder="معرف المدرسة (اختياري)">
+              <label for="school_id">معرف المدرسة (اختياري)</label>
+            </div>
+
+            <div class="d-grid mb-2">
+              <button type="submit" class="btn btn-primary btn-lg">إنشاء الحساب</button>
+            </div>
+
+            <div class="text-center small-muted">
+              لديك حساب بالفعل؟ <a href="{{ url_for('auth_bp.login') }}">تسجيل الدخول</a>
+            </div>
+
+          </form>
+
+        </div>
+      </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // إظهار/إخفاء كلمة المرور
+      (function(){
+        const btn = document.getElementById('togglePassword');
+        const pw = document.getElementById('password');
+        if (!btn || !pw) return;
+        btn.addEventListener('click', function(){
+          const type = pw.getAttribute('type') === 'password' ? 'text' : 'password';
+          pw.setAttribute('type', type);
+          btn.textContent = type === 'password' ? 'إظهار' : 'إخفاء';
+        });
+      })();
+    </script>
+  </body>
+</html>
