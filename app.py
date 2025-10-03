@@ -11,6 +11,9 @@ from routes.attendance import attendance_bp
 from routes.grades import grades_bp
 from routes.tracking import tracking_bp
 
+# إضافة Smart Blueprint
+from routes.pages.smart import smart_bp
+
 app = Flask(__name__, template_folder="templates")
 
 # --- تسجيل Blueprints ---
@@ -23,25 +26,18 @@ app.register_blueprint(classes_bp, url_prefix='/classes')
 app.register_blueprint(attendance_bp, url_prefix='/attendance')
 app.register_blueprint(grades_bp, url_prefix='/grades')
 app.register_blueprint(tracking_bp, url_prefix='/tracking')
+app.register_blueprint(smart_bp, url_prefix='/smart')  # <-- Smart
 
 # --- صفحة Smart ---
 @app.route("/smart")
 def smart_page():
-    # بيانات تجريبية
-    students = [
-        {"id": 1, "student_name": "أحمد", "class_name": "الصف الأول", "section": "أ"},
-        {"id": 2, "student_name": "سارة", "class_name": "الصف الأول", "section": "ب"},
-    ]
-    classes = ["الصف الأول", "الصف الثاني"]
-    sections = ["أ", "ب", "ج"]
-
-    smart_pages = ["Smart 1"]  # التبويبات الافتراضية
-
+    # التبويبات الافتراضية
+    smart_pages = ["Smart 1"]
     return render_template(
         "smart.html",
-        students=students,
-        classes=classes,
-        sections=sections,
+        students=[],  # سيتم جلب البيانات ديناميكياً من API
+        classes=[],
+        sections=[],
         smart_pages=smart_pages
     )
 
@@ -73,6 +69,8 @@ def test_all_routes():
     except: result['grades'] = "❌ FAIL"
     try: result['tracking'] = "✅ OK"
     except: result['tracking'] = "❌ FAIL"
+    try: result['smart'] = "✅ OK"
+    except: result['smart'] = "❌ FAIL"
 
     return jsonify(result)
 

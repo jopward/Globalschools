@@ -77,15 +77,11 @@
     <div id="tabsContent">
       {% for page in smart_pages %}
       <div class="tab-page" id="{{ page }}" style="display: {{ 'block' if loop.first else 'none' }};">
-
-        <!-- أزرار التحكم فوق الجدول -->
         <div class="table-actions">
           <button class="btn btn-sm btn-danger" onclick="deleteCurrentTab('{{ page }}')">🗑</button>
           <button class="btn btn-sm btn-primary" onclick="addColumn('{{ page }}')">➕</button>
           <button class="btn btn-sm btn-warning" onclick="deleteColumn('{{ page }}')">➖</button>
         </div>
-
-        <!-- الجدول -->
         <div class="table-container">
           <table class="table table-bordered" id="table_{{ page }}">
             <thead class="table-light">
@@ -94,14 +90,7 @@
                 <th class="sticky-col">الاسم</th>
               </tr>
             </thead>
-            <tbody>
-              {% for student in students %}
-              <tr>
-                <td class="row-number">{{ loop.index }}</td>
-                <td>{{ student.student_name }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
+            <tbody id="tbody_{{ page }}"></tbody>
           </table>
         </div>
       </div>
@@ -116,16 +105,32 @@ let smartPages = {{ smart_pages|tojson }};
 let pageCount = smartPages.length;
 let pageData = {};
 
-// تهيئة البيانات لكل صفحة عند التحميل
-smartPages.forEach(page => {
-  const table = document.getElementById(`table_${page}`);
-  pageData[page] = {
+// جلب البيانات من API /smart/students
+async function fetchStudents(class_id=null, school_id=null, keyword=null) {
+  let url = '/smart/students?';
+  if(class_id) url += `class_id=${class_id}&`;
+  if(school_id) url += `school_id=${school_id}&`;
+  if(keyword) url += `q=${keyword}&`;
+  const res = await fetch(url);
+  return await res.json();
+}
+
+// تهيئة الجدول لكل صفحة
+async function initTable(pageId) {
+  const tbody = document.getElementById(`tbody_${pageId}`);
+  const students = await fetchStudents();
+  tbody.innerHTML = '';
+  students.forEach((s, idx) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="row-number">${idx+1}</td><td>${s.student_name}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  pageData[pageId] = {
     columns: ["#", "الاسم"],
-    rows: Array.from(table.querySelectorAll('tbody tr')).map(tr =>
-      Array.from(tr.children).map(td => td.textContent)
-    )
+    rows: Array.from(tbody.querySelectorAll('tr')).map(tr => Array.from(tr.children).map(td => td.textContent))
   };
-});
+}
 
 // عرض تبويب
 function showTab(pageId){
@@ -164,7 +169,7 @@ function renderTable(pageId){
   });
 }
 
-// حفظ
+// حفظ البيانات
 function saveCellData(pageId){
   const table = document.getElementById(`table_${pageId}`);
   pageData[pageId].rows = Array.from(table.querySelectorAll('tbody tr')).map(tr =>
@@ -173,7 +178,7 @@ function saveCellData(pageId){
 }
 
 // إضافة صفحة جديدة
-function addSmartTab(){
+async function addSmartTab(){
   pageCount++;
   const newPage = `Smart ${pageCount}`;
   smartPages.push(newPage);
@@ -188,10 +193,6 @@ function addSmartTab(){
   div.className='tab-page';
   div.id=newPage;
   div.style.display='none';
-  let tbodyHtml='';
-  {% for student in students %}
-  tbodyHtml += `<tr><td class="row-number">{{ loop.index }}</td><td>{{ student.student_name }}</td></tr>`;
-  {% endfor %}
   div.innerHTML=`
     <div class="table-actions">
       <button class="btn btn-sm btn-danger" onclick="deleteCurrentTab('${newPage}')">🗑</button>
@@ -200,16 +201,15 @@ function addSmartTab(){
     </div>
     <div class="table-container">
       <table class="table table-bordered" id="table_${newPage}">
-        <thead class="table-light"><tr><th class="sticky-col" style="width:40px">#</th><th class="sticky-col">الاسم</th></tr></thead>
-        <tbody>${tbodyHtml}</tbody>
+        <thead class="table-light">
+          <tr><th class="sticky-col" style="width:40px">#</th><th class="sticky-col">الاسم</th></tr>
+        </thead>
+        <tbody id="tbody_${newPage}"></tbody>
       </table>
     </div>`;
   document.getElementById('tabsContent').appendChild(div);
 
-  pageData[newPage] = {
-    columns: ["#", "الاسم"],
-    rows: Array.from(div.querySelectorAll('tbody tr')).map(tr => Array.from(tr.children).map(td => td.textContent))
-  };
+  await initTable(newPage);
   showTab(newPage);
 }
 
@@ -243,4 +243,7 @@ function deleteColumn(pageId){
   data.rows.forEach(row => row.pop());
   renderTable(pageId);
 }
+
+// تهيئة أول صفحة عند تحميل الصفحة
+window.addEventListener('DOMContentLoaded', () => initTable('Smart 1'));
 </script>
