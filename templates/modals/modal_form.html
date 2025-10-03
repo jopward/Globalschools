@@ -1,0 +1,47 @@
+<!-- templates/modals/modal_form.html -->
+<div class="modal fade" id="modalForm" tabindex="-1" aria-labelledby="modalFormLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form id="modalFormElement" class="needs-validation" novalidate>
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalFormLabel">إضافة / تعديل مدرسة</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+        </div>
+        <div class="modal-body">
+          <!-- hidden id (للتعديل) -->
+          <input type="hidden" id="school_id" name="school_id" value="">
+
+          <div class="mb-3 form-floating">
+            <input type="text" class="form-control" id="school_name" name="school_name" placeholder="اسم المدرسة" required>
+            <label for="school_name">اسم المدرسة</label>
+            <div class="invalid-feedback">الرجاء إدخال اسم المدرسة.</div>
+          </div>
+
+          <div class="mb-3 form-floating">
+            <input type="text" class="form-control" id="admin_username" name="admin_username" placeholder="اسم المدير" required>
+            <label for="admin_username">اسم المدير</label>
+            <div class="invalid-feedback">الرجاء إدخال اسم المدير.</div>
+          </div>
+
+          <div class="mb-3 form-floating position-relative">
+            <input type="password" class="form-control" id="admin_password" name="admin_password" placeholder="كلمة مرور المدير" required>
+            <label for="admin_password">كلمة مرور المدير</label>
+            <button type="button" class="btn btn-sm btn-outline-secondary position-absolute" id="toggleAdminPw" style="left:10px; top:10px;">إظهار</button>
+            <div class="invalid-feedback">الرجاء إدخال كلمة المرور.</div>
+            <div class="form-text">يمكن ترك كلمة المرور فارغة عند التعديل إذا لم ترغب بتغييرها.</div>
+          </div>
+
+          <div id="formAlert" class="alert d-none" role="alert"></div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="submit" id="modalSubmitBtn" class="btn btn-primary">
+            <span id="modalSubmitText">حفظ</span>
+            <span id="modalSpinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

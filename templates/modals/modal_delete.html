@@ -1,0 +1,28 @@
+<!-- templates/modals/modal_delete.html -->
+<div class="modal fade" id="modalDelete" tabindex="-1" aria-labelledby="modalDeleteLabel" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalDeleteLabel">حذف مدرسة</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+      </div>
+      <div class="modal-body">
+        <p>هل أنت متأكد أنك تريد حذف المدرسة التالية؟</p>
+        <p class="fw-bold" id="deleteSchoolName">—</p>
+        <div id="deleteAlert" class="alert d-none" role="alert"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button type="button" id="confirmDeleteBtn" class="btn btn-danger">
+          حذف
+          <span id="deleteSpinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
+  <div id="toastsContainer"></div>
+</div>

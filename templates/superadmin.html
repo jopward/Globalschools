@@ -28,7 +28,7 @@
       </div>
 
       <div class="mb-3 text-end">
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSchoolModal">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalForm" data-mode="add">
           <i class="bi bi-plus-lg"></i> إضافة مدرسة
         </button>
       </div>
@@ -44,13 +44,13 @@
         </thead>
         <tbody id="schoolsTableBody">
           {% for school in schools %}
-          <tr>
+          <tr data-id="{{ school.id }}">
             <td>{{ loop.index }}</td>
-            <td>{{ school.name }}</td>
-            <td>{{ school.admin_username }}</td>
+            <td class="school-name">{{ school.name }}</td>
+            <td class="admin-username">{{ school.admin_username }}</td>
             <td class="table-actions">
-              <i class="bi bi-pencil-square text-primary" title="تعديل"></i>
-              <i class="bi bi-trash text-danger" title="حذف"></i>
+              <i class="bi bi-pencil-square text-primary edit-btn" title="تعديل"></i>
+              <i class="bi bi-trash text-danger delete-btn" title="حذف"></i>
             </td>
           </tr>
           {% endfor %}
@@ -58,86 +58,19 @@
       </table>
     </div>
 
-    <!-- Modal لإضافة مدرسة -->
-    <div class="modal fade" id="addSchoolModal" tabindex="-1" aria-labelledby="addSchoolModalLabel" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <form id="addSchoolForm">
-            <div class="modal-header">
-              <h5 class="modal-title" id="addSchoolModalLabel">إضافة مدرسة جديدة</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
-            </div>
-            <div class="modal-body">
-              <div class="mb-3">
-                <label for="school_name" class="form-label">اسم المدرسة</label>
-                <input type="text" class="form-control" id="school_name" name="school_name" required>
-              </div>
-              <div class="mb-3">
-                <label for="admin_username" class="form-label">اسم المدير</label>
-                <input type="text" class="form-control" id="admin_username" name="admin_username" required>
-              </div>
-              <div class="mb-3">
-                <label for="admin_password" class="form-label">كلمة مرور المدير</label>
-                <input type="password" class="form-control" id="admin_password" name="admin_password" required>
-              </div>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-              <button type="submit" class="btn btn-primary">إضافة</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+    <!-- إدراج المودالات -->
+    {% include 'modals/modal_form.html' %}
+    {% include 'modals/modal_delete.html' %}
 
+    <!-- مكتبات -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- تعريف API قبل تحميل js -->
     <script>
-      const form = document.getElementById('addSchoolForm');
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const data = {
-          school_name: form.school_name.value,
-          admin_username: form.admin_username.value,
-          admin_password: form.admin_password.value
-        };
-
-        try {
-          const response = await fetch('/schools', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(data)
-          });
-
-          const result = await response.json();
-
-          if(result.error){
-            alert(result.error);
-          } else {
-            alert(result.message);
-            // إضافة المدرسة الجديدة مباشرة للجدول دون إعادة تحميل
-            const tbody = document.getElementById('schoolsTableBody');
-            const newRow = document.createElement('tr');
-            const index = tbody.children.length + 1;
-            newRow.innerHTML = `
-              <td>${index}</td>
-              <td>${data.school_name}</td>
-              <td>${data.admin_username}</td>
-              <td class="table-actions">
-                <i class="bi bi-pencil-square text-primary" title="تعديل"></i>
-                <i class="bi bi-trash text-danger" title="حذف"></i>
-              </td>
-            `;
-            tbody.appendChild(newRow);
-            form.reset();
-            const modal = bootstrap.Modal.getInstance(document.getElementById('addSchoolModal'));
-            modal.hide();
-          }
-
-        } catch (err) {
-          alert('حدث خطأ أثناء إضافة المدرسة.');
-          console.error(err);
-        }
-      });
+      window.API_SCHOOLS = "{{ url_for('school_bp.get_schools') }}";
     </script>
+
+    <!-- ملف CRUD -->
+    <script src="{{ url_for('static', filename='js/crud.js') }}"></script>
   </body>
 </html>
