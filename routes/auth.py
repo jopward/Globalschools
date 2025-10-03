@@ -1,35 +1,38 @@
-# routes/auth.py
-from flask import Blueprint, request, jsonify, session
-from models.user import verify_user  # استدعاء دوال التحقق من الموديل
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from models.user import verify_user, get_user_by_id   # استدعاء الدوال من ملف user.py
 
-# تعريف الـ Blueprint
-auth_bp = Blueprint("auth_bp", __name__)
+auth_bp = Blueprint('auth_bp', __name__, url_prefix='/auth')
 
-# =============================
-# راوتات تسجيل الدخول والخروج
-# =============================
-
-@auth_bp.route("/login", methods=["POST"])
+@auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
-    """
-    تسجيل الدخول: يتحقق من اسم المستخدم وكلمة المرور.
-    """
-    data = request.json
-    username = data.get("username")
-    password = data.get("password")
+    if request.method == 'POST':
+        username = request.form['username'].strip()
+        password = request.form['password'].strip()
 
-    user = verify_user(username, password)
-    if user:
-        session["user_id"] = user["id"]
-        session["role"] = user["role"]
-        return jsonify({"message": "تم تسجيل الدخول بنجاح", "user": user}), 200
-    return jsonify({"message": "اسم المستخدم أو كلمة المرور غير صحيحة"}), 401
+        # التحقق من المستخدم
+        user = verify_user(username, password)
+        if not user:
+            flash('اسم المستخدم أو كلمة المرور غير صحيحة.')
+            return redirect(url_for('auth_bp.login'))
 
-@auth_bp.route("/logout", methods=["POST"])
+        # حفظ بيانات المستخدم في الجلسة
+        session['user_id'] = user['id']
+        session['user_role'] = user['role']
+        session['user_name'] = user['name']
+
+        # توجيه المستخدم حسب دوره
+        if user['role'] == 'admin':
+            return redirect(url_for('dashboard'))
+        elif user['role'] == 'teacher':
+            return redirect(url_for('dashboard'))
+        else:
+            return redirect(url_for('dashboard'))
+
+    return render_template('login.html')
+
+
+@auth_bp.route('/logout')
 def logout():
-    """
-    تسجيل الخروج: يحذف بيانات الجلسة.
-    """
-    session.pop("user_id", None)
-    session.pop("role", None)
-    return jsonify({"message": "تم تسجيل الخروج بنجاح"}), 200
+    session.clear()
+    flash('تم تسجيل الخروج بنجاح.')
+    return redirect(url_for('auth_bp.login'))

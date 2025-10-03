@@ -33,9 +33,15 @@ app.register_blueprint(smart_bp, url_prefix='/smart')  # <-- Smart
 @app.route("/")
 @app.route("/dashboard")
 def dashboard():
-    user = session.get('user')
-    if not user:
-        return redirect(url_for('auth.login'))  # توجيه لصفحة تسجيل الدخول
+    # جلب بيانات المستخدم من الجلسة
+    if 'user_id' not in session:
+        return redirect(url_for('auth_bp.login'))  # توجيه لصفحة تسجيل الدخول
+
+    user = {
+        'id': session.get('user_id'),
+        'role': session.get('user_role'),
+        'name': session.get('user_name')
+    }
     return render_template("dashboard.html", user=user)
 
 # --- صفحة Smart ---
