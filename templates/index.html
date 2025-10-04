@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    {% include 'partials/header.html' %}
+  </head>
+  <body>
+    {% include 'partials/navbar.html' %}
+
+    <main class="container my-5">
+        {% block content %}{% endblock %}
+    </main>
+
+    {% include 'partials/footer.html' %}
+  </body>
+</html>
