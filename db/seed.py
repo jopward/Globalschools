@@ -8,7 +8,7 @@ from db_setup import get_connection
 
 def seed_data():
     conn = get_connection()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
 
     # --- المدارس ---
     schools = [
@@ -17,19 +17,20 @@ def seed_data():
     ]
     school_ids = []
     for name, admin_user, admin_pw in schools:
-        hashed_pw = generate_password_hash(admin_pw)
+        # إدخال اسم المدرسة فقط
         cur.execute("""
-            INSERT INTO schools (school_name, admin_username, admin_password)
-            VALUES (%s, %s, %s) RETURNING id
-        """, (name, admin_user, hashed_pw))
-        school_ids.append(cur.fetchone()['id'])
+            INSERT INTO schools (school_name)
+            VALUES (%s) RETURNING id
+        """, (name,))
+        school_id = cur.fetchone()['id']
+        school_ids.append(school_id)
 
-    # --- المدراء ---
-    for idx, s_id in enumerate(school_ids):
+        # إنشاء المدير في جدول users
+        hashed_pw = generate_password_hash(admin_pw)
         cur.execute("""
             INSERT INTO users (name, username, password, role, school_id)
             VALUES (%s, %s, %s, %s, %s) RETURNING id
-        """, (f"Admin {idx+1}", f"admin{idx+1}", generate_password_hash("1234"), "admin", s_id))
+        """, (f"Admin {name}", admin_user, hashed_pw, "admin", school_id))
 
     # --- المعلمين ---
     teachers = [

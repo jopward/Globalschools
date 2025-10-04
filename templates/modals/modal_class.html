@@ -1,0 +1,44 @@
+<div class="modal fade" id="addClassModal" tabindex="-1" aria-labelledby="addClassModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="addClassForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="addClassModalLabel">إضافة صف/شعبة</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="period" class="form-label">الفترة</label>
+            <select class="form-select" id="period" name="period" required>
+              <option value="صباحية" selected>صباحية</option>
+              <option value="مسائية">مسائية</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="grade" class="form-label">الصف</label>
+            <select class="form-select" id="grade" name="grade" required>
+              <option disabled selected>اختر الصف</option>
+              <option value="السابع">السابع</option>
+              <option value="الثامن">الثامن</option>
+              <option value="التاسع">التاسع</option>
+              <option value="العاشر">العاشر</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="section" class="form-label">الشعبة</label>
+            <select class="form-select" id="section" name="section" required>
+              <option disabled selected>اختر الشعبة</option>
+              <option value="أ">أ</option>
+              <option value="ب">ب</option>
+              <option value="ج">ج</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-primary">إضافة</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

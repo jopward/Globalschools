@@ -10,18 +10,18 @@ from routes.classes import classes_bp
 from routes.attendance import attendance_bp
 from routes.grades import grades_bp
 from routes.tracking import tracking_bp
-from routes.auth import auth_bp  # <-- إضافة auth
+from routes.auth import auth_bp
 from routes.pages.smart import smart_bp
 
 app = Flask(__name__, template_folder="templates")
-app.secret_key = "YOUR_SECRET_KEY"  # <-- استبدل بمفتاح قوي
+app.secret_key = "YOUR_SECRET_KEY"
 
 # --- تسجيل Blueprints ---
-app.register_blueprint(auth_bp)  # auth_bp يحتوي على url_prefix داخلي
+app.register_blueprint(auth_bp)
 app.register_blueprint(user_bp, url_prefix='/users')
 app.register_blueprint(student_bp, url_prefix='/students')
 app.register_blueprint(teacher_bp, url_prefix='/teachers')
-app.register_blueprint(school_bp)  # school_bp يحتوي على endpoints بدون url_prefix
+app.register_blueprint(school_bp)
 app.register_blueprint(subjects_bp, url_prefix='/subjects')
 app.register_blueprint(classes_bp, url_prefix='/classes')
 app.register_blueprint(attendance_bp, url_prefix='/attendance')
@@ -44,9 +44,39 @@ def dashboard():
 
     # إذا كان Super Admin حوله مباشرة لصفحة superadmin
     if user['role'] == 'superadmin':
-        return redirect(url_for('auth_bp.superadmin_page'))
+        return redirect(url_for('superadmin_page'))
 
     return render_template("dashboard.html", user=user)
+
+# --- صفحة Super Admin ---
+@app.route("/superadmin_page")
+def superadmin_page():
+    if 'user_id' not in session or session.get('user_role') != 'superadmin':
+        return redirect(url_for('auth_bp.login'))
+
+    user = {
+        'id': session.get('user_id'),
+        'role': session.get('user_role'),
+        'name': session.get('user_name')
+    }
+
+    schools = []  # يمكنك جلبها من قاعدة البيانات لاحقًا
+    return render_template("superadmin.html", user=user, schools=schools)
+
+# --- صفحة Classes للـ Admin ---
+@app.route("/classes_page")
+def classes_page():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return redirect(url_for('auth_bp.login'))
+
+    user = {
+        'id': session.get('user_id'),
+        'role': session.get('user_role'),
+        'name': session.get('user_name')
+    }
+
+    classes = []  # يمكنك جلبها من قاعدة البيانات لاحقًا
+    return render_template("classes.html", user=user, classes=classes)
 
 # --- صفحة Smart ---
 @app.route("/smart")
@@ -54,7 +84,7 @@ def smart_page():
     smart_pages = ["Smart 1"]
     return render_template(
         "smart.html",
-        students=[],  # سيتم جلب البيانات ديناميكياً من API
+        students=[],
         classes=[],
         sections=[],
         smart_pages=smart_pages

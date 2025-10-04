@@ -46,8 +46,8 @@
           {% for school in schools %}
           <tr data-id="{{ school.id }}">
             <td>{{ loop.index }}</td>
-            <td class="school-name">{{ school.name }}</td>
-            <td class="admin-username">{{ school.admin_username }}</td>
+            <td class="school-name">{{ school.school_name }}</td>
+            <td class="admin-username">{{ school.admin_name or school.admin_username or 'غير محدد' }}</td>
             <td class="table-actions">
               <i class="bi bi-pencil-square text-primary edit-btn" title="تعديل"></i>
               <i class="bi bi-trash text-danger delete-btn" title="حذف"></i>

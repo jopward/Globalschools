@@ -1,13 +1,6 @@
 from flask import Blueprint, request, jsonify, session, redirect, url_for, flash
-from models.school import (
-    create_school,
-    get_school_by_id,
-    get_all_schools,
-    update_school,
-    delete_school,
-    search_schools_by_name,
-    filter_schools_by_admin
-)
+from db.db_setup import get_connection
+from werkzeug.security import generate_password_hash
 from functools import wraps
 
 school_bp = Blueprint('school_bp', __name__)
@@ -19,11 +12,9 @@ def login_required(role=None):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            # التحقق من تسجيل الدخول
             if 'user_id' not in session:
                 flash("يجب تسجيل الدخول أولاً")
                 return redirect(url_for("auth_bp.login"))
-            # التحقق من الدور إذا كان مطلوبًا
             if role:
                 user_role = session.get("user_role")
                 if isinstance(role, list):
@@ -42,58 +33,99 @@ def login_required(role=None):
 # ============================
 
 @school_bp.route('/schools', methods=['POST'])
-@login_required(role=["admin", "superadmin"])
+@login_required(role=["superadmin"])
 def add_school():
-    """إضافة مدرسة جديدة"""
+    """إضافة مدرسة جديدة وحساب المدير تلقائيًا"""
     data = request.json
     school_name = data.get('school_name')
     admin_username = data.get('admin_username')
     admin_password = data.get('admin_password')
 
-    if not school_name:
-        return jsonify({"error": "اسم المدرسة مطلوب"}), 400
+    if not school_name or not admin_username or not admin_password:
+        return jsonify({"error": "اسم المدرسة واسم المدير وكلمة المرور مطلوبة"}), 400
 
-    school_id = create_school(school_name, admin_username, admin_password)
-    return jsonify({"message": "تمت إضافة المدرسة", "school_id": school_id})
+    # إضافة المدرسة
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO schools (school_name) VALUES (%s) RETURNING id",
+        (school_name,)
+    )
+    school_id = cur.fetchone()['id']
+
+    # تشفير كلمة المرور
+    hashed_password = generate_password_hash(admin_password)
+
+    # إضافة المدير في جدول users
+    cur.execute(
+        """
+        INSERT INTO users (name, username, password, role, school_id)
+        VALUES (%s, %s, %s, %s, %s)
+        """,
+        (admin_username, admin_username, hashed_password, 'admin', school_id)
+    )
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return jsonify({
+        "message": "تمت إضافة المدرسة والمدير بنجاح",
+        "school_id": school_id,
+        "admin_username": admin_username
+    })
 
 @school_bp.route('/schools', methods=['GET'])
 @login_required()
 def get_schools():
-    """استرجاع جميع المدارس"""
-    schools = get_all_schools()
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM schools ORDER BY id")
+    schools = cur.fetchall()
+    cur.close()
+    conn.close()
     return jsonify(schools)
 
 @school_bp.route('/schools/<int:school_id>', methods=['GET'])
 @login_required()
 def get_school(school_id):
-    """استرجاع مدرسة حسب الـ ID"""
-    school = get_school_by_id(school_id)
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM schools WHERE id=%s", (school_id,))
+    school = cur.fetchone()
+    cur.close()
+    conn.close()
     if not school:
         return jsonify({"error": "المدرسة غير موجودة"}), 404
     return jsonify(school)
 
 @school_bp.route('/schools/<int:school_id>', methods=['PUT'])
-@login_required(role=["admin", "superadmin"])
+@login_required(role=["superadmin"])
 def edit_school(school_id):
-    """تحديث بيانات المدرسة"""
     data = request.json
     school_name = data.get('school_name')
-    admin_username = data.get('admin_username')
-    admin_password = data.get('admin_password')
 
-    updated = update_school(school_id, school_name, admin_username, admin_password)
-    if updated:
-        return jsonify({"message": "تم تحديث المدرسة بنجاح"})
-    return jsonify({"error": "فشل تحديث المدرسة"}), 400
+    if not school_name:
+        return jsonify({"error": "اسم المدرسة مطلوب"}), 400
+
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE schools SET school_name=%s WHERE id=%s", (school_name, school_id))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return jsonify({"message": "تم تحديث المدرسة بنجاح"})
 
 @school_bp.route('/schools/<int:school_id>', methods=['DELETE'])
-@login_required(role=["admin", "superadmin"])
+@login_required(role=["superadmin"])
 def remove_school(school_id):
-    """حذف مدرسة"""
-    deleted = delete_school(school_id)
-    if deleted:
-        return jsonify({"message": "تم حذف المدرسة بنجاح"})
-    return jsonify({"error": "فشل حذف المدرسة"}), 400
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM schools WHERE id=%s", (school_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return jsonify({"message": "تم حذف المدرسة بنجاح"})
 
 # ============================
 # البحث والفلترة
@@ -102,19 +134,27 @@ def remove_school(school_id):
 @school_bp.route('/schools/search', methods=['GET'])
 @login_required()
 def search_school():
-    """البحث عن المدارس بواسطة الاسم"""
     keyword = request.args.get('q')
     if not keyword:
         return jsonify({"error": "يرجى إدخال كلمة البحث"}), 400
-    schools = search_schools_by_name(keyword)
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM schools WHERE school_name ILIKE %s", (f"%{keyword}%",))
+    schools = cur.fetchall()
+    cur.close()
+    conn.close()
     return jsonify(schools)
 
 @school_bp.route('/schools/filter', methods=['GET'])
 @login_required()
 def filter_school():
-    """فلترة المدارس حسب اسم المدير"""
     admin_username = request.args.get('admin')
     if not admin_username:
         return jsonify({"error": "يرجى إدخال اسم المدير"}), 400
-    schools = filter_schools_by_admin(admin_username)
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM schools WHERE admin_username=%s", (admin_username,))
+    schools = cur.fetchall()
+    cur.close()
+    conn.close()
     return jsonify(schools)

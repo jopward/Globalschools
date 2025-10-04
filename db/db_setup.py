@@ -1,4 +1,4 @@
-# db/db_setup.p
+# db/db_setup.py
 from .db_connection import get_connection
 from werkzeug.security import generate_password_hash
 
@@ -6,13 +6,11 @@ def create_tables():
     conn = get_connection()
     cur = conn.cursor()
 
-    # --- جدول المدارس ---
+    # --- جدول المدارس (تم حذف admin_username و admin_password) ---
     cur.execute("""
     CREATE TABLE IF NOT EXISTS schools (
         id SERIAL PRIMARY KEY,
-        school_name TEXT NOT NULL,
-        admin_username TEXT,
-        admin_password TEXT
+        school_name TEXT NOT NULL
     );
     """)
 

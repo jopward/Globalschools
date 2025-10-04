@@ -4,20 +4,18 @@ from db.db_setup import get_connection
 # CRUD وإدارة المدارس
 # ============================
 
-def create_school(school_name, admin_username=None, admin_password=None):
+def create_school(school_name):
     """
     إضافة مدرسة جديدة
     school_name: اسم المدرسة
-    admin_username: اسم مستخدم المدير (اختياري)
-    admin_password: كلمة مرور المدير (اختياري)
     """
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
-        INSERT INTO schools (school_name, admin_username, admin_password)
-        VALUES (%s, %s, %s)
+        INSERT INTO schools (school_name)
+        VALUES (%s)
         RETURNING id
-    """, (school_name, admin_username, admin_password))
+    """, (school_name,))
     school_id = cur.fetchone()['id']
     conn.commit()
     cur.close()
@@ -48,31 +46,17 @@ def get_all_schools():
     conn.close()
     return schools
 
-def update_school(school_id, school_name=None, admin_username=None, admin_password=None):
+def update_school(school_id, school_name=None):
     """
     تحديث بيانات المدرسة
     """
+    if not school_name:
+        return False
+
     conn = get_connection()
     cur = conn.cursor()
-    updates = []
-    values = []
-
-    if school_name:
-        updates.append("school_name=%s")
-        values.append(school_name)
-    if admin_username:
-        updates.append("admin_username=%s")
-        values.append(admin_username)
-    if admin_password:
-        updates.append("admin_password=%s")
-        values.append(admin_password)
-
-    if updates:
-        query = f"UPDATE schools SET {', '.join(updates)} WHERE id=%s"
-        values.append(school_id)
-        cur.execute(query, tuple(values))
-        conn.commit()
-
+    cur.execute("UPDATE schools SET school_name=%s WHERE id=%s", (school_name, school_id))
+    conn.commit()
     cur.close()
     conn.close()
     return True
@@ -105,14 +89,4 @@ def search_schools_by_name(keyword):
     conn.close()
     return schools
 
-def filter_schools_by_admin(admin_username):
-    """
-    استرجاع المدارس التي يملكها مدير محدد
-    """
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM schools WHERE admin_username=%s", (admin_username,))
-    schools = cur.fetchall()
-    cur.close()
-    conn.close()
-    return schools
+# حذف دالة الفلترة حسب admin_username لأنها لم تعد موجودة

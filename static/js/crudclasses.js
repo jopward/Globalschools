@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, session, redirect, url_for, flash
+from flask import Blueprint, request, jsonify, session, redirect, url_for, flash, render_template
 from models.classes import (
     create_class,
     get_class_by_id,
@@ -21,15 +21,11 @@ def login_required(role=None):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            user = session.get("user")
-            if not user:
+            if 'user_id' not in session:
                 flash("يجب تسجيل الدخول أولاً")
                 return redirect(url_for("auth_bp.login"))
-            # تأكد أن user dict وليس string
-            if isinstance(user, str):
-                flash("خطأ في الجلسة: بيانات المستخدم غير صحيحة")
-                return redirect(url_for("auth_bp.login"))
-            if role and user.get("role") != role:
+            user_role = session.get("user_role")
+            if role and user_role != role:
                 flash("لا تمتلك صلاحية الوصول لهذه الصفحة")
                 return redirect(url_for("auth_bp.login"))
             return f(*args, **kwargs)
@@ -134,3 +130,18 @@ def class_teachers(class_id):
 def class_subjects(class_id):
     subjects = get_class_subjects(class_id)
     return jsonify(subjects)
+
+
+# ============================
+# صفحة HTML للعرض (مدير)
+# ============================
+@classes_bp.route('/page')
+@login_required(role='admin')
+def classes_page():
+    user = {
+        'id': session.get('user_id'),
+        'role': session.get('user_role'),
+        'name': session.get('user_name'),
+        'school_id': session.get('user_school_id', 1)
+    }
+    return render_template("classes.html", user=user)
