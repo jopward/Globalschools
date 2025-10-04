@@ -1,9 +1,7 @@
 // static/js/crud.js
 document.addEventListener('DOMContentLoaded', () => {
-  // API base (من القالب — تأكد أن القالب يعرّفه قبل استدعاء هذا الملف)
-  const API_BASE = window.API_SCHOOLS || '/schools/schools';
+  const API_BASE = window.API_SCHOOLS || '/schools';
 
-  // عناصر
   const tbody = document.getElementById('schoolsTableBody');
   const modalEl = document.getElementById('modalForm');
   const modalForm = document.getElementById('modalFormElement');
@@ -21,7 +19,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const deleteSpinner = document.getElementById('deleteSpinner');
   const deleteAlert = document.getElementById('deleteAlert');
 
-  // toast helper
   function showToast(message, type = 'success') {
     const id = `t${Date.now()}`;
     const toastHtml = `
@@ -34,12 +31,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('toastsContainer');
     container.insertAdjacentHTML('beforeend', toastHtml);
     const tEl = document.getElementById(id);
-    const bsToast = new bootstrap.Toast(tEl, { delay: 4000 });
-    bsToast.show();
+    new bootstrap.Toast(tEl, { delay: 4000 }).show();
     tEl.addEventListener('hidden.bs.toast', () => tEl.remove());
   }
 
-  // password toggle
   if (toggleAdminPw) {
     toggleAdminPw.addEventListener('click', () => {
       const pw = document.getElementById('admin_password');
@@ -50,22 +45,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // افتح المودال للاضافة (زر موجود في الصفحة يجب أن يملك data-mode="add")
   document.querySelectorAll('[data-bs-target="#modalForm"]').forEach(btn => {
-    btn.addEventListener('click', (ev) => {
+    btn.addEventListener('click', () => {
       modalForm.reset();
       modalForm.classList.remove('was-validated');
       formAlert.classList.add('d-none');
-
       document.getElementById('school_id').value = '';
       submitText.textContent = 'إضافة';
       modalForm.dataset.mode = 'add';
-      // autofocus
       setTimeout(() => document.getElementById('school_name').focus(), 200);
     });
   });
 
-  // تحرير (delegation)
   tbody && tbody.addEventListener('click', (e) => {
     const editBtn = e.target.closest('.edit-btn');
     const deleteBtn = e.target.closest('.delete-btn');
@@ -75,14 +66,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const schoolId = tr.dataset.id || tr.getAttribute('data-id');
 
     if (editBtn) {
-      // prefill and open modal for edit
       const name = tr.querySelector('.school-name')?.textContent?.trim() || '';
       const admin = tr.querySelector('.admin-username')?.textContent?.trim() || '';
       document.getElementById('school_id').value = schoolId;
       document.getElementById('school_name').value = name;
       document.getElementById('admin_username').value = admin;
-      document.getElementById('admin_password').value = ''; // empty unless change
-
+      document.getElementById('admin_password').value = '';
       submitText.textContent = 'حفظ التغييرات';
       modalForm.dataset.mode = 'edit';
       modal.show();
@@ -100,7 +89,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ارسال النموذج (اضافة / تعديل)
   modalForm.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     modalForm.classList.add('was-validated');
@@ -114,7 +102,6 @@ document.addEventListener('DOMContentLoaded', () => {
       admin_password: document.getElementById('admin_password').value
     };
 
-    // UI busy
     submitBtn.disabled = true;
     modalSpinner.classList.remove('d-none');
     formAlert.classList.add('d-none');
@@ -138,11 +125,8 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error(msg);
       }
 
-      // نجاح الطلب
       if (mode === 'add') {
-        // server returns { message, school_id }
         const newId = data.school_id || Date.now();
-        // append row
         const row = document.createElement('tr');
         row.setAttribute('data-id', newId);
         const index = tbody.children.length + 1;
@@ -158,7 +142,6 @@ document.addEventListener('DOMContentLoaded', () => {
         tbody.appendChild(row);
         showToast(data.message || 'تمت الإضافة');
       } else {
-        // تحديث السطر الموجود
         const row = tbody.querySelector(`tr[data-id="${id}"]`);
         if (row) {
           row.querySelector('.school-name').textContent = payload.school_name;
@@ -171,18 +154,14 @@ document.addEventListener('DOMContentLoaded', () => {
       modalForm.reset();
     } catch (err) {
       console.error(err);
-      if (!formAlert.classList.contains('d-none')) {
-        // already shown
-      } else {
-        showToast('حدث خطأ، تحقق من الاتصال', 'danger');
-      }
+      if (!formAlert.classList.contains('d-none')) {} 
+      else showToast('حدث خطأ، تحقق من الاتصال', 'danger');
     } finally {
       submitBtn.disabled = false;
       modalSpinner.classList.add('d-none');
     }
   });
 
-  // تأكيد الحذف
   confirmDeleteBtn && confirmDeleteBtn.addEventListener('click', async () => {
     const id = confirmDeleteBtn.dataset.schoolId;
     if (!id) return;
@@ -201,14 +180,12 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error('delete failed');
       }
 
-      // remove row
       const row = tbody.querySelector(`tr[data-id="${id}"]`);
       if (row) row.remove();
-      // re-index
       Array.from(tbody.children).forEach((r, idx) => r.children[0].innerText = idx + 1);
 
       deleteModal.hide();
-      showToast(data.message || 'تم الحذف', 'success');
+      showToast(data.message || 'تم حذف المدرسة والمديرين بنجاح', 'success');
     } catch (err) {
       console.error(err);
       showToast('فشل الحذف', 'danger');

@@ -44,30 +44,35 @@ def add_school():
     if not school_name or not admin_username or not admin_password:
         return jsonify({"error": "اسم المدرسة واسم المدير وكلمة المرور مطلوبة"}), 400
 
-    # إضافة المدرسة
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute(
-        "INSERT INTO schools (school_name) VALUES (%s) RETURNING id",
-        (school_name,)
-    )
-    school_id = cur.fetchone()['id']
+    try:
+        # إضافة المدرسة
+        cur.execute(
+            "INSERT INTO schools (school_name) VALUES (%s) RETURNING id",
+            (school_name,)
+        )
+        school_id = cur.fetchone()['id']
 
-    # تشفير كلمة المرور
-    hashed_password = generate_password_hash(admin_password)
+        # تشفير كلمة المرور
+        hashed_password = generate_password_hash(admin_password)
 
-    # إضافة المدير في جدول users
-    cur.execute(
-        """
-        INSERT INTO users (name, username, password, role, school_id)
-        VALUES (%s, %s, %s, %s, %s)
-        """,
-        (admin_username, admin_username, hashed_password, 'admin', school_id)
-    )
+        # إضافة المدير في جدول users
+        cur.execute(
+            """
+            INSERT INTO users (name, username, password, role, school_id)
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            (admin_username, admin_username, hashed_password, 'admin', school_id)
+        )
 
-    conn.commit()
-    cur.close()
-    conn.close()
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
 
     return jsonify({
         "message": "تمت إضافة المدرسة والمدير بنجاح",
@@ -119,13 +124,22 @@ def edit_school(school_id):
 @school_bp.route('/schools/<int:school_id>', methods=['DELETE'])
 @login_required(role=["superadmin"])
 def remove_school(school_id):
+    """حذف المدرسة مع جميع المستخدمين المرتبطين بها"""
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("DELETE FROM schools WHERE id=%s", (school_id,))
-    conn.commit()
-    cur.close()
-    conn.close()
-    return jsonify({"message": "تم حذف المدرسة بنجاح"})
+    try:
+        # حذف المستخدمين المرتبطين بالمدرسة أولاً
+        cur.execute("DELETE FROM users WHERE school_id = %s", (school_id,))
+        # ثم حذف المدرسة نفسها
+        cur.execute("DELETE FROM schools WHERE id = %s", (school_id,))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": "فشل الحذف: " + str(e)}), 400
+    finally:
+        cur.close()
+        conn.close()
+    return jsonify({"message": "تم حذف المدرسة والمديرين المرتبطين بنجاح"})
 
 # ============================
 # البحث والفلترة
