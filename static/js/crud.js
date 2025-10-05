@@ -1,7 +1,9 @@
 // static/js/crud.js
 document.addEventListener('DOMContentLoaded', () => {
-  const API_BASE = window.API_SCHOOLS || '/schools';
+  // API base (من القالب)
+  const API_BASE = window.API_SCHOOLS || '/schools/schools';
 
+  // عناصر
   const tbody = document.getElementById('schoolsTableBody');
   const modalEl = document.getElementById('modalForm');
   const modalForm = document.getElementById('modalFormElement');
@@ -11,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalSpinner = document.getElementById('modalSpinner');
   const formAlert = document.getElementById('formAlert');
   const toggleAdminPw = document.getElementById('toggleAdminPw');
+  const genPwBtn = document.getElementById('generateAdminPw'); // زر توليد كلمة المرور
 
   const deleteModalEl = document.getElementById('modalDelete');
   const deleteModal = new bootstrap.Modal(deleteModalEl);
@@ -19,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const deleteSpinner = document.getElementById('deleteSpinner');
   const deleteAlert = document.getElementById('deleteAlert');
 
+  // دالة عرض toast
   function showToast(message, type = 'success') {
     const id = `t${Date.now()}`;
     const toastHtml = `
@@ -31,10 +35,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('toastsContainer');
     container.insertAdjacentHTML('beforeend', toastHtml);
     const tEl = document.getElementById(id);
-    new bootstrap.Toast(tEl, { delay: 4000 }).show();
+    const bsToast = new bootstrap.Toast(tEl, { delay: 4000 });
+    bsToast.show();
     tEl.addEventListener('hidden.bs.toast', () => tEl.remove());
   }
 
+  // إظهار / إخفاء كلمة المرور
   if (toggleAdminPw) {
     toggleAdminPw.addEventListener('click', () => {
       const pw = document.getElementById('admin_password');
@@ -45,6 +51,21 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // توليد كلمة مرور عشوائية
+  if (genPwBtn) {
+    genPwBtn.addEventListener('click', () => {
+      const pwField = document.getElementById('admin_password');
+      if (!pwField) return;
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=';
+      const password = Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+      pwField.value = password;
+      pwField.type = 'text'; // عرضها مؤقتًا
+      showToast('تم توليد كلمة مرور تلقائيًا', 'info');
+      setTimeout(() => (pwField.type = 'password'), 5000);
+    });
+  }
+
+  // افتح المودال للإضافة
   document.querySelectorAll('[data-bs-target="#modalForm"]').forEach(btn => {
     btn.addEventListener('click', () => {
       modalForm.reset();
@@ -57,12 +78,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // تعديل / حذف
   tbody && tbody.addEventListener('click', (e) => {
     const editBtn = e.target.closest('.edit-btn');
     const deleteBtn = e.target.closest('.delete-btn');
     const tr = e.target.closest('tr');
     if (!tr) return;
-
     const schoolId = tr.dataset.id || tr.getAttribute('data-id');
 
     if (editBtn) {
@@ -89,6 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // إرسال النموذج (إضافة / تعديل)
   modalForm.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     modalForm.classList.add('was-validated');
@@ -116,7 +138,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       const data = await res.json().catch(()=>({}));
-
       if (!res.ok) {
         const msg = data.error || data.message || 'فشل الطلب';
         formAlert.className = 'alert alert-danger';
@@ -154,14 +175,14 @@ document.addEventListener('DOMContentLoaded', () => {
       modalForm.reset();
     } catch (err) {
       console.error(err);
-      if (!formAlert.classList.contains('d-none')) {} 
-      else showToast('حدث خطأ، تحقق من الاتصال', 'danger');
+      showToast('حدث خطأ، تحقق من الاتصال', 'danger');
     } finally {
       submitBtn.disabled = false;
       modalSpinner.classList.add('d-none');
     }
   });
 
+  // تأكيد الحذف
   confirmDeleteBtn && confirmDeleteBtn.addEventListener('click', async () => {
     const id = confirmDeleteBtn.dataset.schoolId;
     if (!id) return;
@@ -183,9 +204,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const row = tbody.querySelector(`tr[data-id="${id}"]`);
       if (row) row.remove();
       Array.from(tbody.children).forEach((r, idx) => r.children[0].innerText = idx + 1);
-
       deleteModal.hide();
-      showToast(data.message || 'تم حذف المدرسة والمديرين بنجاح', 'success');
+      showToast(data.message || 'تم الحذف', 'success');
     } catch (err) {
       console.error(err);
       showToast('فشل الحذف', 'danger');
