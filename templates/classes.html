@@ -1,8 +1,14 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>إدارة الصفوف والشُعب</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body class="p-4">
 
-{% block title %}إدارة الصفوف والشُعب{% endblock %}
-
-{% block content %}
 <div class="container">
     <h2 class="mb-4">إدارة الصفوف والشُعب</h2>
 
@@ -52,22 +58,28 @@
     </div>
 </div>
 
-{% endblock %}
-
-{% block scripts %}
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
 $(document).ready(function() {
     const schoolId = $("#school_id").val();
+    if (!schoolId) {
+        alert("لم يتم تحديد المدرسة!");
+        return;
+    }
 
     // دالة لجلب الصفوف من API وعرضها
     function loadClasses() {
         $.get(`/classes/filter/school?school_id=${schoolId}`, function(data) {
             const tbody = $("#classesTable tbody");
             tbody.empty();
+
+            if (!data || data.length === 0) {
+                tbody.append('<tr><td colspan="4" class="text-center">لا توجد صفوف</td></tr>');
+                return;
+            }
+
             data.forEach(cls => {
                 tbody.append(`
-                    <tr>
+                    <tr data-id="${cls.id}">
                         <td>${cls.class_name}</td>
                         <td>${cls.section}</td>
                         <td>${cls.period}</td>
@@ -77,6 +89,8 @@ $(document).ready(function() {
                     </tr>
                 `);
             });
+        }).fail(function() {
+            alert("فشل في تحميل الصفوف من السيرفر!");
         });
     }
 
@@ -89,13 +103,14 @@ $(document).ready(function() {
         const section = $("#section").val().trim();
         const period = $("#period").val();
 
+        // تحقق من عدم تكرار الاسم والشُعبة
         let duplicate = false;
         $("#classesTable tbody tr").each(function() {
             const existingName = $(this).find("td:eq(0)").text().trim();
             const existingSection = $(this).find("td:eq(1)").text().trim();
             if (existingName === className && existingSection === section) {
                 duplicate = true;
-                return false;
+                return false; // خروج من اللوب
             }
         });
 
@@ -110,13 +125,13 @@ $(document).ready(function() {
             contentType: "application/json",
             data: JSON.stringify({ class_name: className, section: section, period: period, school_id: schoolId }),
             success: function(res) {
-                alert(res.message);
+                alert(res.message || "تم إضافة الصف!");
                 $("#class_name").val('');
                 $("#section").val('');
                 loadClasses();
             },
             error: function(err) {
-                alert(err.responseJSON.error || "حدث خطأ أثناء الإضافة");
+                alert(err.responseJSON?.error || "حدث خطأ أثناء الإضافة");
             }
         });
     });
@@ -124,20 +139,24 @@ $(document).ready(function() {
     // حذف الصف
     $(document).on("click", ".delete-btn", function() {
         const id = $(this).data("id");
+        if (!id) return;
+
         if (confirm("هل أنت متأكد من حذف هذا الصف؟")) {
             $.ajax({
                 url: `/classes/${id}`,
                 method: "DELETE",
                 success: function(res) {
-                    alert(res.message);
+                    alert(res.message || "تم الحذف!");
                     loadClasses();
                 },
                 error: function(err) {
-                    alert(err.responseJSON.error || "حدث خطأ أثناء الحذف");
+                    alert(err.responseJSON?.error || "حدث خطأ أثناء الحذف");
                 }
             });
         }
     });
 });
 </script>
-{% endblock %}
+
+</body>
+</html>
