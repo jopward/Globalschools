@@ -1,4 +1,4 @@
-
+from flask import Blueprint, render_template, request, session, redirect, url_for, flash
 from db.db_setup import get_connection
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -6,24 +6,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 # دوال CRUD للمستخدمين
 # ============================
 
-# ----------------------------
-# إضافة مستخدم جديد
-# ----------------------------
 def create_user(name, username, password, role, school_id=None, teacher_code=None):
-    """
-    إضافة مستخدم جديد إلى قاعدة البيانات.
-    
-    المعاملات:
-    - name: اسم المستخدم
-    - username: اسم المستخدم الفريد
-    - password: كلمة المرور (ستتحول إلى هاش)
-    - role: نوع المستخدم (superadmin / admin / teacher)
-    - school_id: معرف المدرسة (اختياري)
-    - teacher_code: رقم تعريف المعلم (اختياري، فقط للمعلمين)
-    
-    الإرجاع:
-    - id المستخدم الذي تم إضافته
-    """
     conn = get_connection()
     cur = conn.cursor()
     hashed_pw = generate_password_hash(password)
@@ -38,9 +21,6 @@ def create_user(name, username, password, role, school_id=None, teacher_code=Non
     conn.close()
     return user_id
 
-# ----------------------------
-# استرجاع المستخدم حسب الـ ID
-# ----------------------------
 def get_user_by_id(user_id):
     conn = get_connection()
     cur = conn.cursor()
@@ -50,9 +30,6 @@ def get_user_by_id(user_id):
     conn.close()
     return user
 
-# ----------------------------
-# استرجاع المستخدم حسب اسم المستخدم
-# ----------------------------
 def get_user_by_username(username):
     conn = get_connection()
     cur = conn.cursor()
@@ -62,9 +39,6 @@ def get_user_by_username(username):
     conn.close()
     return user
 
-# ----------------------------
-# تحديث بيانات المستخدم
-# ----------------------------
 def update_user(user_id, name=None, username=None, password=None, role=None, school_id=None, teacher_code=None):
     conn = get_connection()
     cur = conn.cursor()
@@ -101,9 +75,6 @@ def update_user(user_id, name=None, username=None, password=None, role=None, sch
     conn.close()
     return True
 
-# ----------------------------
-# حذف مستخدم
-# ----------------------------
 def delete_user(user_id):
     conn = get_connection()
     cur = conn.cursor()
@@ -113,11 +84,32 @@ def delete_user(user_id):
     conn.close()
     return True
 
-# ============================
-# دوال مساعدة للتحقق من تسجيل الدخول
-# ============================
 def verify_user(username, password):
     user = get_user_by_username(username)
     if user and check_password_hash(user['password'], password):
         return user
     return None
+
+# ============================
+# Blueprint للمستخدمين
+# ============================
+user_bp = Blueprint("user_bp", __name__, url_prefix="/users")
+
+@user_bp.route("/")
+def list_users():
+    # هنا يمكن لاحقاً جلب جميع المستخدمين
+    return "صفحة جميع المستخدمين"
+
+@user_bp.route("/add", methods=["GET", "POST"])
+def add_user_page():
+    if request.method == "POST":
+        name = request.form.get("name")
+        username = request.form.get("username")
+        password = request.form.get("password")
+        role = request.form.get("role")
+        school_id = request.form.get("school_id")
+        teacher_code = request.form.get("teacher_code")
+        create_user(name, username, password, role, school_id, teacher_code)
+        flash("تم إضافة المستخدم بنجاح")
+        return redirect(url_for("user_bp.list_users"))
+    return render_template("add_user.html")

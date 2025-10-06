@@ -1,7 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from models.user import verify_user, create_user
+from models.user import verify_user, create_user, get_user_by_username
 from models.school import get_all_schools
-from models.teacher import get_teacher_by_code  # دالة جديدة نستخدمها للتحقق من teacher_code
 
 auth_bp = Blueprint('auth_bp', __name__, url_prefix='/auth')
 
@@ -22,7 +21,9 @@ def login():
         session['user_id'] = user['id']
         session['user_role'] = user['role']
         session['user_name'] = user['name']
-        session['school_id'] = user.get('school_id')  # كل مدرسة ترى بياناتها فقط
+        session['school_id'] = user.get('school_id')
+        if user['role'] == 'teacher':
+            session['teacher_code'] = user.get('teacher_code')  # حفظ كود المعلم
 
         # توجيه المستخدم حسب دوره
         if user['role'] == 'superadmin':
@@ -62,32 +63,33 @@ def register():
         password = request.form['password'].strip()
         role = request.form['role']
         school_id = request.form.get('school_id')
-        teacher_code = request.form.get('teacher_code', '').strip()  # الكود الخاص بالمعلم (اختياري إلا إذا كان Teacher)
+        teacher_code = request.form.get('teacher_code', '').strip()
 
         # التحقق من الحقول العامة
         if not name or not username or not password or not role or not school_id:
             flash('الرجاء تعبئة جميع الحقول المطلوبة.')
             return redirect(url_for('auth_bp.register'))
 
-        # إذا كان الدور Teacher، نتحقق من الكود
-        if role == 'teacher':
-            if not teacher_code:
-                flash('يرجى إدخال كود المعلم.')
-                return redirect(url_for('auth_bp.register'))
-
-            teacher = get_teacher_by_code(teacher_code)
-            if not teacher:
-                flash('كود المعلم غير صحيح أو غير موجود.')
-                return redirect(url_for('auth_bp.register'))
+        # إذا كان الدور Teacher، التحقق من وجود teacher_code
+        if role == 'teacher' and not teacher_code:
+            flash('يرجى إدخال كود المعلم.')
+            return redirect(url_for('auth_bp.register'))
 
         # التحقق من وجود المستخدم مسبقًا
-        existing_user = verify_user(username, password)
+        existing_user = get_user_by_username(username)
         if existing_user:
             flash('اسم المستخدم موجود مسبقًا.')
             return redirect(url_for('auth_bp.register'))
 
         # إنشاء المستخدم
-        user_id = create_user(name, username, password, role, school_id)
+        user_id = create_user(
+            name,
+            username,
+            password,
+            role,
+            school_id,
+            teacher_code if role == 'teacher' else None
+        )
 
         flash('تم إنشاء الحساب بنجاح! يمكنك تسجيل الدخول الآن.')
         return redirect(url_for('auth_bp.login'))

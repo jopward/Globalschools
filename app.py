@@ -15,8 +15,8 @@ from routes.pages.smart import smart_bp
 
 # --- استيراد الدالة الصحيحة لجلب الصفوف حسب المدرسة ---
 from models.classes import filter_classes_by_school
-from models.teachers import get_teacher_by_code  # 🔹 جديد: دالة جلب معلم عبر الكود التعريفي
-from models.school import get_all_schools  # 🔹 جديد: لجلب المدارس عند إضافة مادة
+from models.user import get_user_by_username  # ✅ استخدام هذا بدلاً من get_teacher_by_code
+from models.school import get_all_schools
 
 app = Flask(__name__, template_folder="templates")
 app.secret_key = "YOUR_SECRET_KEY"
@@ -72,7 +72,7 @@ def superadmin_page():
         'name': session.get('user_name')
     }
 
-    schools = []  # لاحقاً سنجلبها من قاعدة البيانات
+    schools = get_all_schools()
     return render_template("superadmin.html", user=user, schools=schools)
 
 # ===========================================================
