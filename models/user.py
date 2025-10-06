@@ -1,4 +1,3 @@
-
 from db.db_setup import get_connection
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -9,7 +8,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 # ----------------------------
 # إضافة مستخدم جديد
 # ----------------------------
-def create_user(name, username, password, role, school_id=None):
+def create_user(name, username, password, role, school_id=None, teacher_code=None):
     """
     إضافة مستخدم جديد إلى قاعدة البيانات.
     
@@ -19,6 +18,7 @@ def create_user(name, username, password, role, school_id=None):
     - password: كلمة المرور (ستتحول إلى هاش)
     - role: نوع المستخدم (superadmin / admin / teacher)
     - school_id: معرف المدرسة (اختياري)
+    - teacher_code: رقم تعريف المعلم (اختياري، فقط للمعلمين)
     
     الإرجاع:
     - id المستخدم الذي تم إضافته
@@ -27,10 +27,10 @@ def create_user(name, username, password, role, school_id=None):
     cur = conn.cursor()
     hashed_pw = generate_password_hash(password)
     cur.execute("""
-        INSERT INTO users (name, username, password, role, school_id)
-        VALUES (%s, %s, %s, %s, %s)
+        INSERT INTO users (name, username, password, role, school_id, teacher_code)
+        VALUES (%s, %s, %s, %s, %s, %s)
         RETURNING id
-    """, (name, username, hashed_pw, role, school_id))
+    """, (name, username, hashed_pw, role, school_id, teacher_code))
     user_id = cur.fetchone()['id']
     conn.commit()
     cur.close()
@@ -41,12 +41,6 @@ def create_user(name, username, password, role, school_id=None):
 # استرجاع المستخدم حسب الـ ID
 # ----------------------------
 def get_user_by_id(user_id):
-    """
-    استرجاع بيانات المستخدم باستخدام معرفه (ID).
-    
-    الإرجاع:
-    - قاموس يحتوي على بيانات المستخدم أو None إذا لم يوجد
-    """
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("SELECT * FROM users WHERE id = %s", (user_id,))
@@ -59,12 +53,6 @@ def get_user_by_id(user_id):
 # استرجاع المستخدم حسب اسم المستخدم
 # ----------------------------
 def get_user_by_username(username):
-    """
-    استرجاع بيانات المستخدم باستخدام اسم المستخدم.
-    
-    الإرجاع:
-    - قاموس يحتوي على بيانات المستخدم أو None إذا لم يوجد
-    """
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("SELECT * FROM users WHERE username = %s", (username,))
@@ -76,14 +64,7 @@ def get_user_by_username(username):
 # ----------------------------
 # تحديث بيانات المستخدم
 # ----------------------------
-def update_user(user_id, name=None, username=None, password=None, role=None, school_id=None):
-    """
-    تحديث بيانات المستخدم.
-    يمكن تحديث أي من الحقول (name, username, password, role, school_id) بشكل اختياري.
-    
-    الإرجاع:
-    - True بعد نجاح التحديث
-    """
+def update_user(user_id, name=None, username=None, password=None, role=None, school_id=None, teacher_code=None):
     conn = get_connection()
     cur = conn.cursor()
     
@@ -105,6 +86,9 @@ def update_user(user_id, name=None, username=None, password=None, role=None, sch
     if school_id:
         updates.append("school_id=%s")
         values.append(school_id)
+    if teacher_code:
+        updates.append("teacher_code=%s")
+        values.append(teacher_code)
     
     if updates:
         query = f"UPDATE users SET {', '.join(updates)} WHERE id=%s"
@@ -120,12 +104,6 @@ def update_user(user_id, name=None, username=None, password=None, role=None, sch
 # حذف مستخدم
 # ----------------------------
 def delete_user(user_id):
-    """
-    حذف المستخدم من قاعدة البيانات حسب معرفه.
-    
-    الإرجاع:
-    - True بعد نجاح الحذف
-    """
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("DELETE FROM users WHERE id=%s", (user_id,))
@@ -137,18 +115,7 @@ def delete_user(user_id):
 # ============================
 # دوال مساعدة للتحقق من تسجيل الدخول
 # ============================
-
-# ----------------------------
-# التحقق من اسم المستخدم وكلمة المرور
-# ----------------------------
 def verify_user(username, password):
-    """
-    التحقق من صحة اسم المستخدم وكلمة المرور.
-    
-    الإرجاع:
-    - قاموس بيانات المستخدم إذا كان التحقق صحيح
-    - None إذا فشل التحقق
-    """
     user = get_user_by_username(username)
     if user and check_password_hash(user['password'], password):
         return user

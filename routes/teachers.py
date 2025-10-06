@@ -31,6 +31,7 @@ def login_required(role=None):
         return wrapper
     return decorator
 
+
 # ============================
 # CRUD للمعلمين
 # ============================
@@ -44,18 +45,21 @@ def add_teacher():
     password = data.get('password')
     school_id = data.get('school_id')
     subjects = data.get('subjects', [])
+    teacher_code = data.get('teacher_code')  # ✅ الكود الجديد
 
-    if not all([name, username, password, school_id]):
+    if not all([name, username, password, school_id, teacher_code]):
         return jsonify({"error": "جميع الحقول مطلوبة"}), 400
 
-    teacher_id = create_teacher(name, username, password, school_id, subjects)
+    teacher_id = create_teacher(name, username, password, school_id, subjects, teacher_code)
     return jsonify({"message": "تم إضافة المعلم", "teacher_id": teacher_id})
+
 
 @teacher_bp.route('/teachers', methods=['GET'])
 @login_required()  # أي مستخدم مسجل دخول يمكنه الوصول
 def list_teachers():
     teachers = get_all_teachers()
     return jsonify(teachers)
+
 
 @teacher_bp.route('/teachers/<int:teacher_id>', methods=['GET'])
 @login_required()
@@ -64,6 +68,7 @@ def get_teacher(teacher_id):
     if not teacher:
         return jsonify({"error": "المعلم غير موجود"}), 404
     return jsonify(teacher)
+
 
 @teacher_bp.route('/teachers/<int:teacher_id>', methods=['PUT'])
 @login_required(role='admin')
@@ -74,11 +79,13 @@ def edit_teacher(teacher_id):
         name=data.get('name'),
         username=data.get('username'),
         password=data.get('password'),
-        school_id=data.get('school_id')
+        school_id=data.get('school_id'),
+        teacher_code=data.get('teacher_code')  # ✅ تعديل الكود هنا أيضًا
     )
     if updated:
         return jsonify({"message": "تم تحديث المعلم"})
     return jsonify({"error": "فشل التحديث"}), 400
+
 
 @teacher_bp.route('/teachers/<int:teacher_id>', methods=['DELETE'])
 @login_required(role='admin')
@@ -87,6 +94,7 @@ def remove_teacher(teacher_id):
     if deleted:
         return jsonify({"message": "تم حذف المعلم"})
     return jsonify({"error": "فشل الحذف"}), 400
+
 
 # ============================
 # البحث والفلترة
@@ -101,6 +109,7 @@ def search_teacher():
     teachers = search_teachers_by_name(keyword)
     return jsonify(teachers)
 
+
 @teacher_bp.route('/teachers/filter/school', methods=['GET'])
 @login_required()
 def filter_teacher_school():
@@ -109,6 +118,7 @@ def filter_teacher_school():
         return jsonify({"error": "يرجى إدخال معرف المدرسة"}), 400
     teachers = filter_teachers_by_school(school_id)
     return jsonify(teachers)
+
 
 @teacher_bp.route('/teachers/<int:teacher_id>/subjects', methods=['GET'])
 @login_required()

@@ -1,6 +1,6 @@
 from flask import Flask, jsonify, render_template, session, redirect, url_for
 
-# Blueprints
+# --- Blueprints ---
 from routes.user import user_bp
 from routes.students import student_bp
 from routes.teachers import teacher_bp
@@ -13,8 +13,10 @@ from routes.tracking import tracking_bp
 from routes.auth import auth_bp
 from routes.pages.smart import smart_bp
 
-# استيراد الدالة الصحيحة لجلب الصفوف حسب المدرسة
+# --- استيراد الدالة الصحيحة لجلب الصفوف حسب المدرسة ---
 from models.classes import filter_classes_by_school
+from models.teachers import get_teacher_by_code  # 🔹 جديد: دالة جلب معلم عبر الكود التعريفي
+from models.school import get_all_schools  # 🔹 جديد: لجلب المدارس عند إضافة مادة
 
 app = Flask(__name__, template_folder="templates")
 app.secret_key = "YOUR_SECRET_KEY"
@@ -32,7 +34,9 @@ app.register_blueprint(grades_bp, url_prefix='/grades')
 app.register_blueprint(tracking_bp, url_prefix='/tracking')
 app.register_blueprint(smart_bp, url_prefix='/smart')
 
-# --- Dashboard ديناميكي حسب الدور ---
+# ===========================================================
+# --- الصفحة الرئيسية / لوحة التحكم ---
+# ===========================================================
 @app.route("/")
 @app.route("/dashboard")
 def dashboard():
@@ -48,9 +52,15 @@ def dashboard():
     if user['role'] == 'superadmin':
         return redirect(url_for('superadmin_page'))
 
+    if user['role'] == 'teacher':
+        teacher_code = session.get('teacher_code')
+        return render_template("teacher_dashboard.html", user=user, teacher_code=teacher_code)
+
     return render_template("dashboard.html", user=user)
 
+# ===========================================================
 # --- صفحة Super Admin ---
+# ===========================================================
 @app.route("/superadmin_page")
 def superadmin_page():
     if 'user_id' not in session or session.get('user_role') != 'superadmin':
@@ -62,10 +72,12 @@ def superadmin_page():
         'name': session.get('user_name')
     }
 
-    schools = []  # لاحقاً يمكن جلب المدارس من DB
+    schools = []  # لاحقاً سنجلبها من قاعدة البيانات
     return render_template("superadmin.html", user=user, schools=schools)
 
+# ===========================================================
 # --- صفحة Classes للـ Admin ---
+# ===========================================================
 @app.route("/classes_page")
 def classes_page():
     if 'user_id' not in session or session.get('user_role') != 'admin':
@@ -77,14 +89,33 @@ def classes_page():
         'name': session.get('user_name')
     }
 
-    # جلب الصفوف حسب المدرسة باستخدام الدالة الصحيحة
-    # افترض أن session يحتوي على school_id للمستخدم
     school_id = session.get('school_id', 1)
     classes = filter_classes_by_school(school_id)
 
     return render_template("classes.html", user=user, classes=classes)
 
+# ===========================================================
+# --- صفحة إضافة مادة للـ Admin ---
+# ===========================================================
+@app.route("/add_subject_page")
+def add_subject_page():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return redirect(url_for('auth_bp.login'))
+
+    user = {
+        'id': session.get('user_id'),
+        'role': session.get('user_role'),
+        'name': session.get('user_name')
+    }
+
+    # جلب قائمة المدارس لعرضها في select عند إضافة المادة
+    schools = get_all_schools()
+
+    return render_template("add_subject.html", user=user, schools=schools)
+
+# ===========================================================
 # --- صفحة Smart ---
+# ===========================================================
 @app.route("/smart")
 def smart_page():
     smart_pages = ["Smart 1"]
@@ -96,7 +127,9 @@ def smart_page():
         smart_pages=smart_pages
     )
 
+# ===========================================================
 # --- Route اختبارية عامة ---
+# ===========================================================
 @app.route('/test_all')
 def test_all_routes():
     result = {}
@@ -123,5 +156,8 @@ def test_all_routes():
 
     return jsonify(result)
 
+# ===========================================================
+# --- نقطة التشغيل ---
+# ===========================================================
 if __name__ == "__main__":
     app.run(debug=True)

@@ -1,0 +1,75 @@
+<!-- templates/add_subject.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">إضافة مادة جديدة</h2>
+
+    <div class="card shadow-sm p-4">
+        <form id="add-subject-form">
+            <!-- اسم المادة -->
+            <div class="mb-3">
+                <label for="name" class="form-label">اسم المادة</label>
+                <input type="text" class="form-control" id="name" name="name" required>
+            </div>
+
+            <!-- كود المادة (اختياري) -->
+            <div class="mb-3">
+                <label for="code" class="form-label">كود المادة (اختياري)</label>
+                <input type="text" class="form-control" id="code" name="code">
+            </div>
+
+            <!-- وصف المادة (اختياري) -->
+            <div class="mb-3">
+                <label for="description" class="form-label">وصف المادة (اختياري)</label>
+                <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+            </div>
+
+            <!-- اختيار المدرسة -->
+            <div class="mb-3">
+                <label for="school_id" class="form-label">اختر المدرسة</label>
+                <select class="form-select" id="school_id" name="school_id" required>
+                    <option value="">اختر مدرسة</option>
+                    {% for school in schools %}
+                    <option value="{{ school.id }}">{{ school.school_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary">إضافة المادة</button>
+        </form>
+    </div>
+
+    <div id="alert-msg" class="mt-3"></div>
+</div>
+
+<!-- إضافة جافاسكربت لإرسال النموذج عبر AJAX -->
+<script>
+document.getElementById("add-subject-form").addEventListener("submit", async function(e) {
+    e.preventDefault();
+
+    const data = {
+        name: document.getElementById("name").value,
+        code: document.getElementById("code").value,
+        description: document.getElementById("description").value,
+        school_id: document.getElementById("school_id").value
+    };
+
+    const res = await fetch("/subjects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+    });
+
+    const result = await res.json();
+    const alertDiv = document.getElementById("alert-msg");
+
+    if(res.ok){
+        alertDiv.innerHTML = `<div class="alert alert-success">${result.message}</div>`;
+        this.reset();
+    } else {
+        alertDiv.innerHTML = `<div class="alert alert-danger">${result.error}</div>`;
+    }
+});
+</script>
+{% endblock %}

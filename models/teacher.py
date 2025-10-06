@@ -4,20 +4,21 @@ from db.db_setup import get_connection
 # CRUD ودوال المعلمين
 # ============================
 
-def create_teacher(name, username, password, school_id, subjects=[]):
+def create_teacher(name, username, password, school_id, teacher_code=None, subjects=[]):
     """
     إضافة معلم جديد.
     subjects: قائمة معرفات المواد التي يدرسها.
+    teacher_code: رقم تعريف المعلم (اختياري)
     """
     from werkzeug.security import generate_password_hash
     conn = get_connection()
     cur = conn.cursor()
     hashed_pw = generate_password_hash(password)
-    # إضافة المعلم
+    # إضافة المعلم في جدول users مع teacher_code
     cur.execute("""
-        INSERT INTO users (name, username, password, role, school_id)
-        VALUES (%s, %s, %s, %s, %s) RETURNING id
-    """, (name, username, hashed_pw, 'teacher', school_id))
+        INSERT INTO users (name, username, password, role, school_id, teacher_code)
+        VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
+    """, (name, username, hashed_pw, 'teacher', school_id, teacher_code))
     teacher_id = cur.fetchone()['id']
 
     # ربط المعلم بالمواد
@@ -52,7 +53,7 @@ def get_all_teachers():
     conn.close()
     return teachers
 
-def update_teacher(teacher_id, name=None, username=None, password=None, school_id=None):
+def update_teacher(teacher_id, name=None, username=None, password=None, school_id=None, teacher_code=None):
     """تحديث بيانات المعلم"""
     from werkzeug.security import generate_password_hash
     conn = get_connection()
@@ -72,6 +73,9 @@ def update_teacher(teacher_id, name=None, username=None, password=None, school_i
     if school_id:
         updates.append("school_id=%s")
         values.append(school_id)
+    if teacher_code:
+        updates.append("teacher_code=%s")
+        values.append(teacher_code)
 
     if updates:
         query = f"UPDATE users SET {', '.join(updates)} WHERE id=%s AND role='teacher'"

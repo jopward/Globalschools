@@ -1,123 +1,123 @@
-from flask import Blueprint, request, jsonify, session, redirect, url_for, flash
-from models.user import (
-    create_user,
-    get_user_by_id,
-    get_user_by_username,
-    update_user,
-    delete_user,
-    verify_user
-)
-from functools import wraps
 
-user_bp = Blueprint('user_bp', __name__)
+from db.db_setup import get_connection
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # ============================
-# ديكوريتور للتحقق من تسجيل الدخول والصلاحية
+# دوال CRUD للمستخدمين
 # ============================
-def login_required(role=None):
-    def decorator(f):
-        @wraps(f)
-        def wrapper(*args, **kwargs):
-            user = session.get("user")
-            if not user:
-                flash("يجب تسجيل الدخول أولاً")
-                return redirect(url_for("auth.login"))
-            if role and user.get("role") != role:
-                flash("لا تمتلك صلاحية الوصول لهذه الصفحة")
-                return redirect(url_for("auth.login"))
-            return f(*args, **kwargs)
-        return wrapper
-    return decorator
 
-# ============================
-# إنشاء مستخدم جديد
-# ============================
-@user_bp.route('/create', methods=['POST'])
-@login_required(role="admin")  # فقط admin يقدر يضيف مستخدم
-def add_user():
-    data = request.json
-    name = data.get('name')
-    username = data.get('username')
-    password = data.get('password')
-    role = data.get('role')
-    school_id = data.get('school_id')
+# ----------------------------
+# إضافة مستخدم جديد
+# ----------------------------
+def create_user(name, username, password, role, school_id=None, teacher_code=None):
+    """
+    إضافة مستخدم جديد إلى قاعدة البيانات.
+    
+    المعاملات:
+    - name: اسم المستخدم
+    - username: اسم المستخدم الفريد
+    - password: كلمة المرور (ستتحول إلى هاش)
+    - role: نوع المستخدم (superadmin / admin / teacher)
+    - school_id: معرف المدرسة (اختياري)
+    - teacher_code: رقم تعريف المعلم (اختياري، فقط للمعلمين)
+    
+    الإرجاع:
+    - id المستخدم الذي تم إضافته
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+    hashed_pw = generate_password_hash(password)
+    cur.execute("""
+        INSERT INTO users (name, username, password, role, school_id, teacher_code)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        RETURNING id
+    """, (name, username, hashed_pw, role, school_id, teacher_code))
+    user_id = cur.fetchone()['id']
+    conn.commit()
+    cur.close()
+    conn.close()
+    return user_id
 
-    if get_user_by_username(username):
-        return jsonify({"error": "Username already exists"}), 400
+# ----------------------------
+# استرجاع المستخدم حسب الـ ID
+# ----------------------------
+def get_user_by_id(user_id):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+    user = cur.fetchone()
+    cur.close()
+    conn.close()
+    return user
 
-    user_id = create_user(name, username, password, role, school_id)
-    return jsonify({"message": "User created", "user_id": user_id}), 201
+# ----------------------------
+# استرجاع المستخدم حسب اسم المستخدم
+# ----------------------------
+def get_user_by_username(username):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM users WHERE username = %s", (username,))
+    user = cur.fetchone()
+    cur.close()
+    conn.close()
+    return user
 
-# ============================
-# استرجاع مستخدم حسب ID
-# ============================
-@user_bp.route('/<int:user_id>', methods=['GET'])
-@login_required()
-def get_user(user_id):
-    user = get_user_by_id(user_id)
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-    return jsonify(user), 200
+# ----------------------------
+# تحديث بيانات المستخدم
+# ----------------------------
+def update_user(user_id, name=None, username=None, password=None, role=None, school_id=None, teacher_code=None):
+    conn = get_connection()
+    cur = conn.cursor()
+    
+    updates = []
+    values = []
 
-# ============================
-# تحديث بيانات مستخدم
-# ============================
-@user_bp.route('/update/<int:user_id>', methods=['PUT'])
-@login_required(role="admin")  # فقط admin يقدر يحدث بيانات مستخدم
-def edit_user(user_id):
-    data = request.json
-    user = get_user_by_id(user_id)
-    if not user:
-        return jsonify({"error": "User not found"}), 404
+    if name:
+        updates.append("name=%s")
+        values.append(name)
+    if username:
+        updates.append("username=%s")
+        values.append(username)
+    if password:
+        updates.append("password=%s")
+        values.append(generate_password_hash(password))
+    if role:
+        updates.append("role=%s")
+        values.append(role)
+    if school_id:
+        updates.append("school_id=%s")
+        values.append(school_id)
+    if teacher_code:
+        updates.append("teacher_code=%s")
+        values.append(teacher_code)
+    
+    if updates:
+        query = f"UPDATE users SET {', '.join(updates)} WHERE id=%s"
+        values.append(user_id)
+        cur.execute(query, tuple(values))
+        conn.commit()
+    
+    cur.close()
+    conn.close()
+    return True
 
-    updated = update_user(
-        user_id,
-        name=data.get('name'),
-        username=data.get('username'),
-        password=data.get('password'),
-        role=data.get('role'),
-        school_id=data.get('school_id')
-    )
-    return jsonify({"message": "User updated"}), 200
-
-# ============================
+# ----------------------------
 # حذف مستخدم
-# ============================
-@user_bp.route('/delete/<int:user_id>', methods=['DELETE'])
-@login_required(role="admin")  # فقط admin يقدر يحذف مستخدم
-def remove_user(user_id):
-    user = get_user_by_id(user_id)
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-
-    delete_user(user_id)
-    return jsonify({"message": "User deleted"}), 200
-
-# ============================
-# التحقق من تسجيل الدخول
-# ============================
-@user_bp.route('/login', methods=['POST'])
-def login():
-    data = request.json
-    username = data.get('username')
-    password = data.get('password')
-
-    user = verify_user(username, password)
-    if not user:
-        return jsonify({"error": "Invalid username or password"}), 401
-
-    # حفظ بيانات المستخدم في الجلسة
-    session['user'] = user
-    return jsonify({"message": "Login successful", "user": user}), 200
+# ----------------------------
+def delete_user(user_id):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM users WHERE id=%s", (user_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return True
 
 # ============================
-# البحث عن مستخدم حسب اسم المستخدم
+# دوال مساعدة للتحقق من تسجيل الدخول
 # ============================
-@user_bp.route('/search', methods=['GET'])
-@login_required()
-def search_user():
-    username = request.args.get('username')
+def verify_user(username, password):
     user = get_user_by_username(username)
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-    return jsonify(user), 200
+    if user and check_password_hash(user['password'], password):
+        return user
+    return None
