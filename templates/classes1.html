@@ -10,74 +10,70 @@
 <body class="p-4">
 
 <div class="container">
-    <h2 class="mb-4 text-center">إدارة الصفوف والشُعب</h2>
+    <h2 class="mb-4">إدارة الصفوف والشُعب</h2>
 
-    <!-- ✅ نموذج إضافة صف جديد -->
-    <div class="card mb-4 shadow-sm">
+    <!-- نموذج إضافة صف جديد -->
+    <div class="card mb-4">
         <div class="card-body">
-            <h5 class="card-title mb-3">إضافة صف جديد</h5>
+            <h5 class="card-title">إضافة صف جديد</h5>
             <form id="addClassForm">
                 <div class="row g-3">
-                    <div class="col-md-4 col-12">
+                    <div class="col-md-4">
                         <input type="text" class="form-control" id="class_name" placeholder="اسم الصف" required>
                     </div>
-                    <div class="col-md-4 col-12">
+                    <div class="col-md-4">
                         <input type="text" class="form-control" id="section" placeholder="الشُعبة" required>
                     </div>
-                    <div class="col-md-4 col-12">
+                    <div class="col-md-4">
                         <select id="period" class="form-select">
                             <option value="صباحي">صباحي</option>
                             <option value="مسائي">مسائي</option>
                         </select>
                     </div>
                 </div>
-                <input type="hidden" id="school_id" value="{{ session.get('school_id', 1) }}">
+                <input type="hidden" id="school_id" value="{{ user.get('school_id', 1) }}">
                 <button type="submit" class="btn btn-primary mt-3">إضافة الصف</button>
             </form>
         </div>
     </div>
 
-    <!-- ✅ جدول الصفوف -->
-    <div class="card shadow-sm">
+    <!-- جدول الصفوف -->
+    <div class="card">
         <div class="card-body">
-            <h5 class="card-title mb-3">الصفوف الحالية</h5>
-            <div class="table-responsive">
-                <table class="table table-bordered table-striped align-middle text-center" id="classesTable">
-                    <thead class="table-primary">
-                        <tr>
-                            <th>الصف</th>
-                            <th>الشُعبة</th>
-                            <th>الفترة</th>
-                            <th>العمليات</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- البيانات تُملأ ديناميكيًا -->
-                    </tbody>
-                </table>
-            </div>
+            <h5 class="card-title">الصفوف الحالية</h5>
+            <table class="table table-bordered table-striped" id="classesTable">
+                <thead>
+                    <tr>
+                        <th>الصف</th>
+                        <th>الشُعبة</th>
+                        <th>الفترة</th>
+                        <th>العمليات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- البيانات ستُملأ عن طريق AJAX -->
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
 
-<!-- ✅ سكربت الجافاسكربت -->
 <script>
 $(document).ready(function() {
     const schoolId = $("#school_id").val();
-
     if (!schoolId) {
         alert("لم يتم تحديد المدرسة!");
         return;
     }
 
-    // --- تحميل الصفوف الخاصة بالمدرسة ---
+    // دالة لجلب الصفوف من API وعرضها
     function loadClasses() {
         $.get(`/classes/filter/school?school_id=${schoolId}`, function(data) {
             const tbody = $("#classesTable tbody");
             tbody.empty();
 
             if (!data || data.length === 0) {
-                tbody.append('<tr><td colspan="4" class="text-center text-muted">لا توجد صفوف</td></tr>');
+                tbody.append('<tr><td colspan="4" class="text-center">لا توجد صفوف</td></tr>');
                 return;
             }
 
@@ -88,39 +84,33 @@ $(document).ready(function() {
                         <td>${cls.section}</td>
                         <td>${cls.period}</td>
                         <td>
-                            <button class="btn btn-sm btn-danger delete-btn" data-id="${cls.id}">
-                                <i class="bi bi-trash"></i> حذف
-                            </button>
+                            <button class="btn btn-sm btn-danger delete-btn" data-id="${cls.id}">حذف</button>
                         </td>
                     </tr>
                 `);
             });
-        }).fail(() => alert("حدث خطأ أثناء تحميل الصفوف!"));
+        }).fail(function() {
+            alert("فشل في تحميل الصفوف من السيرفر!");
+        });
     }
 
     loadClasses();
 
-    // --- إضافة صف جديد ---
-    $("#addClassForm").on("submit", function(e) {
+    // إضافة صف جديد مع منع التكرار
+    $("#addClassForm").submit(function(e) {
         e.preventDefault();
-
         const className = $("#class_name").val().trim();
         const section = $("#section").val().trim();
         const period = $("#period").val();
 
-        if (!className || !section) {
-            alert("الرجاء إدخال اسم الصف والشُعبة!");
-            return;
-        }
-
-        // منع التكرار محلياً
+        // تحقق من عدم تكرار الاسم والشُعبة
         let duplicate = false;
         $("#classesTable tbody tr").each(function() {
             const existingName = $(this).find("td:eq(0)").text().trim();
             const existingSection = $(this).find("td:eq(1)").text().trim();
             if (existingName === className && existingSection === section) {
                 duplicate = true;
-                return false;
+                return false; // خروج من اللوب
             }
         });
 
@@ -131,22 +121,22 @@ $(document).ready(function() {
 
         $.ajax({
             url: "/classes/",
-            type: "POST",
+            method: "POST",
             contentType: "application/json",
             data: JSON.stringify({ class_name: className, section: section, period: period, school_id: schoolId }),
             success: function(res) {
-                alert(res.message || "تمت إضافة الصف بنجاح!");
+                alert(res.message || "تم إضافة الصف!");
                 $("#class_name").val('');
                 $("#section").val('');
                 loadClasses();
             },
             error: function(err) {
-                alert(err.responseJSON?.error || "حدث خطأ أثناء الإضافة!");
+                alert(err.responseJSON?.error || "حدث خطأ أثناء الإضافة");
             }
         });
     });
 
-    // --- حذف صف ---
+    // حذف الصف
     $(document).on("click", ".delete-btn", function() {
         const id = $(this).data("id");
         if (!id) return;
@@ -154,22 +144,19 @@ $(document).ready(function() {
         if (confirm("هل أنت متأكد من حذف هذا الصف؟")) {
             $.ajax({
                 url: `/classes/${id}`,
-                type: "DELETE",
+                method: "DELETE",
                 success: function(res) {
-                    alert(res.message || "تم حذف الصف بنجاح!");
+                    alert(res.message || "تم الحذف!");
                     loadClasses();
                 },
                 error: function(err) {
-                    alert(err.responseJSON?.error || "حدث خطأ أثناء الحذف!");
+                    alert(err.responseJSON?.error || "حدث خطأ أثناء الحذف");
                 }
             });
         }
     });
 });
 </script>
-
-<!-- أيقونات Bootstrap -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
 
 </body>
 </html>

@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from models.user import verify_user, get_user_by_id, create_user
+from models.user import verify_user, create_user
 from models.school import get_all_schools
 
 auth_bp = Blueprint('auth_bp', __name__, url_prefix='/auth')
@@ -17,18 +17,15 @@ def login():
             flash('اسم المستخدم أو كلمة المرور غير صحيحة.')
             return redirect(url_for('auth_bp.login'))
 
-        # حفظ بيانات المستخدم في الجلسة
+        # حفظ بيانات المستخدم في الجلسة مع school_id
         session['user_id'] = user['id']
         session['user_role'] = user['role']
         session['user_name'] = user['name']
+        session['school_id'] = user.get('school_id')  # هذا يضمن أن كل مدرسة ترى بياناتها فقط
 
         # توجيه المستخدم حسب دوره
         if user['role'] == 'superadmin':
             return redirect(url_for('auth_bp.superadmin_page'))
-        elif user['role'] == 'admin':
-            return redirect(url_for('dashboard'))
-        elif user['role'] == 'teacher':
-            return redirect(url_for('dashboard'))
         else:
             return redirect(url_for('dashboard'))
 

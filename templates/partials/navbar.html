@@ -1,46 +1,35 @@
-<nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm">
-    <div class="container">
-        <a class="navbar-brand fw-bold text-primary" href="{{ url_for('dashboard') }}">نظام الحضور</a>
+<nav class="navbar navbar-expand-lg bg-body-tertiary shadow-sm">
+  <div class="container">
+    <!-- الشعار -->
+    <a class="navbar-brand fw-bold text-primary" href="{{ url_for('superadmin_page') }}">
+      <i class="bi bi-building"></i> نظام الحضور
+    </a>
 
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
-                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+    <!-- زر القائمة (للشاشات الصغيرة) -->
+    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <i class="bi bi-list fs-2 text-primary"></i>
+    </button>
 
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+    <!-- عناصر القائمة -->
+    <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+      <ul class="navbar-nav mb-2 mb-lg-0 text-center">
 
-                <!-- الصفحة الرئيسية -->
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('dashboard') }}">الصفحة الرئيسية</a>
-                </li>
+        <!-- خيار المدارس -->
+        <li class="nav-item">
+          <a class="nav-link fw-semibold text-primary" href="{{ url_for('superadmin_page') }}">
+            <i class="bi bi-bank2"></i> المدارس
+          </a>
+        </li>
 
-                <!-- للسوبر أدمن فقط -->
-                {% if session.user and session.user.role == 'superadmin' %}
-                <li class="nav-item">
-                    <a class="nav-link text-success fw-semibold" href="{{ url_for('schools_page') }}">إضافة المدارس</a>
-                </li>
-                {% endif %}
+        <!-- خيار المدير -->
+        <li class="nav-item">
+          <a class="nav-link fw-semibold text-success" href="{{ url_for('classes_page') }}">
+            <i class="bi bi-person-badge"></i> المدير
+          </a>
+        </li>
 
-                <!-- للأدمن فقط -->
-                {% if session.user and session.user.role == 'admin' %}
-                <li class="nav-item">
-                    <a class="nav-link text-info fw-semibold" href="{{ url_for('classes_page') }}">إضافة الصفوف</a>
-                </li>
-                {% endif %}
-            </ul>
-
-            <!-- معلومات المستخدم وتسجيل الخروج -->
-            {% if session.user %}
-            <ul class="navbar-nav">
-                <li class="nav-item">
-                    <span class="nav-link">مرحباً، {{ session.user.username }}</span>
-                </li>
-                <li class="nav-item">
-                    <a class="btn btn-outline-danger btn-sm" href="{{ url_for('auth_bp.logout') }}">تسجيل الخروج</a>
-                </li>
-            </ul>
-            {% endif %}
-        </div>
+      </ul>
     </div>
+  </div>
 </nav>

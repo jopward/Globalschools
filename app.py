@@ -13,6 +13,9 @@ from routes.tracking import tracking_bp
 from routes.auth import auth_bp
 from routes.pages.smart import smart_bp
 
+# استيراد الدالة الصحيحة لجلب الصفوف حسب المدرسة
+from models.classes import filter_classes_by_school
+
 app = Flask(__name__, template_folder="templates")
 app.secret_key = "YOUR_SECRET_KEY"
 
@@ -42,7 +45,6 @@ def dashboard():
         'name': session.get('user_name')
     }
 
-    # إذا كان Super Admin حوله مباشرة لصفحة superadmin
     if user['role'] == 'superadmin':
         return redirect(url_for('superadmin_page'))
 
@@ -60,7 +62,7 @@ def superadmin_page():
         'name': session.get('user_name')
     }
 
-    schools = []  # يمكنك جلبها من قاعدة البيانات لاحقًا
+    schools = []  # لاحقاً يمكن جلب المدارس من DB
     return render_template("superadmin.html", user=user, schools=schools)
 
 # --- صفحة Classes للـ Admin ---
@@ -75,7 +77,11 @@ def classes_page():
         'name': session.get('user_name')
     }
 
-    classes = []  # يمكنك جلبها من قاعدة البيانات لاحقًا
+    # جلب الصفوف حسب المدرسة باستخدام الدالة الصحيحة
+    # افترض أن session يحتوي على school_id للمستخدم
+    school_id = session.get('school_id', 1)
+    classes = filter_classes_by_school(school_id)
+
     return render_template("classes.html", user=user, classes=classes)
 
 # --- صفحة Smart ---

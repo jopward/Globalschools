@@ -1,136 +1,84 @@
-from flask import Blueprint, request, jsonify, session, redirect, url_for, flash
+from flask import Blueprint, request, jsonify, render_template, session
+from db import db_connection  # ✅ التعديل هنا
 from models.classes import (
     create_class,
-    get_class_by_id,
-    get_all_classes,
     update_class,
     delete_class,
-    search_classes,
-    filter_classes_by_school,
-    get_class_teachers,
-    get_class_subjects
+    filter_classes_by_school
 )
-from functools import wraps
 
-classes_bp = Blueprint('classes_bp', __name__)  # بدون url_prefix هنا
-
-# ============================
-# ديكوريتور للتحقق من تسجيل الدخول والصلاحية
-# ============================
-def login_required(role=None):
-    def decorator(f):
-        @wraps(f)
-        def wrapper(*args, **kwargs):
-            user = session.get("user")
-            if not user:
-                flash("يجب تسجيل الدخول أولاً")
-                return redirect(url_for("auth_bp.login"))
-            # تأكد أن user dict وليس string
-            if isinstance(user, str):
-                flash("خطأ في الجلسة: بيانات المستخدم غير صحيحة")
-                return redirect(url_for("auth_bp.login"))
-            if role and user.get("role") != role:
-                flash("لا تمتلك صلاحية الوصول لهذه الصفحة")
-                return redirect(url_for("auth_bp.login"))
-            return f(*args, **kwargs)
-        return wrapper
-    return decorator
+classes_bp = Blueprint('classes', __name__, url_prefix='/classes')
 
 # ============================
-# CRUD للصفوف
+# صفحة إدارة الصفوف
+# ============================
+@classes_bp.route('/classes_page')
+def classes_page():
+    # تمرير بيانات المستخدم لتحديد المدرسة
+    user = session.get('user', {})
+    return render_template('classes_page.html', user=user)
+
+# ============================
+# فلترة الصفوف حسب المدرسة
+# ============================
+@classes_bp.route('/filter/school')
+def filter_by_school():
+    school_id = request.args.get('school_id')
+    if not school_id:
+        return jsonify({"error": "لم يتم تحديد معرف المدرسة"}), 400
+
+    try:
+        classes = filter_classes_by_school(school_id)
+        return jsonify(classes)
+    except Exception as e:
+        print("❌ خطأ أثناء جلب الصفوف:", e)
+        return jsonify({"error": "حدث خطأ أثناء تحميل الصفوف"}), 500
+
+# ============================
+# إضافة صف جديد
 # ============================
 @classes_bp.route('/', methods=['POST'])
-@login_required(role='admin')
 def add_class():
-    data = request.json
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "بيانات غير صالحة"}), 400
+
     class_name = data.get('class_name')
     section = data.get('section')
     period = data.get('period', 'صباحي')
     school_id = data.get('school_id')
 
-    if not all([class_name, school_id]):
-        return jsonify({"error": "اسم الصف ومعرف المدرسة مطلوب"}), 400
+    if not all([class_name, section, school_id]):
+        return jsonify({"error": "جميع الحقول مطلوبة"}), 400
 
-    class_id = create_class(class_name, section, period, school_id)
-    return jsonify({"message": "تم إضافة الصف", "class_id": class_id})
+    try:
+        class_id = create_class(class_name, section, period, school_id)
+        return jsonify({"message": "تمت إضافة الصف بنجاح", "id": class_id}), 201
+    except Exception as e:
+        print("❌ خطأ أثناء إضافة الصف:", e)
+        return jsonify({"error": "حدث خطأ أثناء الإضافة"}), 500
 
-
-@classes_bp.route('/', methods=['GET'])
-@login_required()
-def list_classes():
-    classes = get_all_classes()
-    return jsonify(classes)
-
-
-@classes_bp.route('/<int:class_id>', methods=['GET'])
-@login_required()
-def get_class(class_id):
-    class_ = get_class_by_id(class_id)
-    if not class_:
-        return jsonify({"error": "الصف غير موجود"}), 404
-    return jsonify(class_)
-
-
+# ============================
+# تحديث صف
+# ============================
 @classes_bp.route('/<int:class_id>', methods=['PUT'])
-@login_required(role='admin')
-def edit_class(class_id):
-    data = request.json
-    updated = update_class(
-        class_id,
-        class_name=data.get('class_name'),
-        section=data.get('section'),
-        period=data.get('period'),
-        school_id=data.get('school_id')
-    )
-    if updated:
-        return jsonify({"message": "تم تحديث الصف"})
-    return jsonify({"error": "فشل التحديث"}), 400
+def update_class_data(class_id):
+    data = request.get_json()
+    try:
+        update_class(class_id, **data)
+        return jsonify({"message": "تم تحديث الصف بنجاح"})
+    except Exception as e:
+        print("❌ خطأ أثناء التحديث:", e)
+        return jsonify({"error": "حدث خطأ أثناء التحديث"}), 500
 
-
+# ============================
+# حذف صف
+# ============================
 @classes_bp.route('/<int:class_id>', methods=['DELETE'])
-@login_required(role='admin')
-def remove_class(class_id):
-    deleted = delete_class(class_id)
-    if deleted:
-        return jsonify({"message": "تم حذف الصف"})
-    return jsonify({"error": "فشل الحذف"}), 400
-
-
-# ============================
-# البحث والفلترة
-# ============================
-@classes_bp.route('/search', methods=['GET'])
-@login_required()
-def search_class():
-    keyword = request.args.get('q')
-    if not keyword:
-        return jsonify({"error": "يرجى إدخال كلمة البحث"}), 400
-    classes = search_classes(keyword)
-    return jsonify(classes)
-
-
-@classes_bp.route('/filter/school', methods=['GET'])
-@login_required()
-def filter_class_school():
-    school_id = request.args.get('school_id')
-    if not school_id:
-        return jsonify({"error": "يرجى إدخال معرف المدرسة"}), 400
-    classes = filter_classes_by_school(school_id)
-    return jsonify(classes)
-
-
-# ============================
-# روابط الصفوف بالمعلمين والمواد
-# ============================
-@classes_bp.route('/<int:class_id>/teachers', methods=['GET'])
-@login_required()
-def class_teachers(class_id):
-    teachers = get_class_teachers(class_id)
-    return jsonify(teachers)
-
-
-@classes_bp.route('/<int:class_id>/subjects', methods=['GET'])
-@login_required()
-def class_subjects(class_id):
-    subjects = get_class_subjects(class_id)
-    return jsonify(subjects)
+def delete_class_data(class_id):
+    try:
+        delete_class(class_id)
+        return jsonify({"message": "تم حذف الصف بنجاح"})
+    except Exception as e:
+        print("❌ خطأ أثناء الحذف:", e)
+        return jsonify({"error": "حدث خطأ أثناء الحذف"}), 500
