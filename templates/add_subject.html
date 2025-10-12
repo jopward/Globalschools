@@ -4,7 +4,7 @@
 <div class="container mt-4">
   <h3 class="mb-4 text-center">📚 إدارة المواد الدراسية</h3>
 
-  <!-- عرض رسائل التنبيه -->
+  <!-- رسائل التنبيه -->
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       {% for category, message in messages %}
@@ -16,11 +16,9 @@
     {% endif %}
   {% endwith %}
 
-  <!-- نموذج إضافة مادة جديدة -->
+  <!-- نموذج إضافة مادة -->
   <div class="card shadow-sm mb-4">
-    <div class="card-header bg-primary text-white">
-      إضافة مادة جديدة
-    </div>
+    <div class="card-header bg-primary text-white">إضافة مادة جديدة</div>
     <div class="card-body">
       <form action="{{ url_for('subjects_bp.create_new_subject') }}" method="POST">
         <div class="row mb-3">
@@ -42,11 +40,9 @@
     </div>
   </div>
 
-  <!-- جدول عرض المواد المضافة -->
+  <!-- جدول المواد -->
   <div class="card shadow-sm">
-    <div class="card-header bg-secondary text-white">
-      قائمة المواد الدراسية
-    </div>
+    <div class="card-header bg-secondary text-white">قائمة المواد الدراسية</div>
     <div class="card-body table-responsive">
       {% if subjects %}
         <table class="table table-bordered table-hover align-middle text-center">
@@ -74,7 +70,7 @@
                   تعديل
                 </button>
 
-                <form action="{{ url_for('subjects_bp.route_delete_subject', subject_id=subject.id) }}"
+                <form action="{{ url_for('subjects_bp.delete_existing_subject', subject_id=subject.id) }}"
                       method="POST" class="d-inline">
                   <button type="submit" class="btn btn-danger btn-sm"
                           onclick="return confirm('هل أنت متأكد من حذف هذه المادة؟')">
@@ -93,7 +89,7 @@
   </div>
 </div>
 
-<!-- نافذة تعديل المادة -->
+<!-- Modal تعديل المادة -->
 <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
@@ -127,18 +123,17 @@
 
 <script>
 function loadSubject(id) {
-  fetch(`/subjects/${id}`)
+  fetch(`/subjects/get/${id}`)
     .then(res => res.json())
     .then(data => {
       if (!data.error) {
         document.getElementById("edit_name").value = data.name || "";
         document.getElementById("edit_code").value = data.code || "";
         document.getElementById("edit_description").value = data.description || "";
-        document.getElementById("editForm").action = `/subjects/${id}`;
+        document.getElementById("editForm").action = `/subjects/update/${id}`;
       }
     })
     .catch(err => console.error("Error fetching subject:", err));
 }
 </script>
-
 {% endblock %}
