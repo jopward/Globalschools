@@ -5,13 +5,14 @@
   <h3 class="mb-4 text-center">📚 إدارة المواد الدراسية</h3>
 
   <!-- عرض رسائل التنبيه -->
-  {% with messages = get_flashed_messages() %}
+  {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-      <div class="alert alert-info">
-        {% for message in messages %}
-          <div>{{ message }}</div>
-        {% endfor %}
-      </div>
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
     {% endif %}
   {% endwith %}
 
@@ -41,7 +42,7 @@
     </div>
   </div>
 
-  <!-- جدول عرض المواد -->
+  <!-- جدول عرض المواد المضافة -->
   <div class="card shadow-sm">
     <div class="card-header bg-secondary text-white">
       قائمة المواد الدراسية
@@ -62,18 +63,18 @@
             {% for subject in subjects %}
             <tr>
               <td>{{ loop.index }}</td>
-              <td>{{ subject.name if subject.name else '-' }}</td>
-              <td>{{ subject.code if subject.code else '-' }}</td>
-              <td>{{ subject.description if subject.description else '-' }}</td>
+              <td>{{ subject.name or '-' }}</td>
+              <td>{{ subject.code or '-' }}</td>
+              <td>{{ subject.description or '-' }}</td>
               <td>
-                <button class="btn btn-warning btn-sm" 
-                        data-bs-toggle="modal" 
+                <button class="btn btn-warning btn-sm"
+                        data-bs-toggle="modal"
                         data-bs-target="#editModal"
                         onclick="loadSubject({{ subject.id }})">
                   تعديل
                 </button>
 
-                <form action="{{ url_for('subjects_bp.delete_existing_subject', subject_id=subject.id) }}" 
+                <form action="{{ url_for('subjects_bp.route_delete_subject', subject_id=subject.id) }}"
                       method="POST" class="d-inline">
                   <button type="submit" class="btn btn-danger btn-sm"
                           onclick="return confirm('هل أنت متأكد من حذف هذه المادة؟')">
@@ -126,15 +127,14 @@
 
 <script>
 function loadSubject(id) {
-  fetch(`/subjects/get/${id}`)
+  fetch(`/subjects/${id}`)
     .then(res => res.json())
     .then(data => {
       if (!data.error) {
         document.getElementById("edit_name").value = data.name || "";
         document.getElementById("edit_code").value = data.code || "";
         document.getElementById("edit_description").value = data.description || "";
-        // استخدم URL ديناميكي مع Blueprint
-        document.getElementById("editForm").action = `/subjects/update/${id}`;
+        document.getElementById("editForm").action = `/subjects/${id}`;
       }
     })
     .catch(err => console.error("Error fetching subject:", err));
