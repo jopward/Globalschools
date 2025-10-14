@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card shadow-sm rounded-4 p-4">
+  <h3 class="mb-4 text-center">إضافة معلم جديد</h3>
+
+  <form method="POST" action="{{ url_for('user_bp.add_user_page') }}">
+    <!-- اسم المعلم -->
+    <div class="mb-3">
+      <label for="name" class="form-label">اسم المعلم</label>
+      <input type="text" class="form-control" id="name" name="name" required placeholder="أدخل اسم المعلم">
+    </div>
+
+    <!-- اسم المستخدم -->
+    <div class="mb-3">
+      <label for="username" class="form-label">اسم المستخدم</label>
+      <input type="text" class="form-control" id="username" name="username" required placeholder="اسم المستخدم للدخول">
+    </div>
+
+    <!-- كلمة المرور -->
+    <div class="mb-3">
+      <label for="password" class="form-label">كلمة المرور</label>
+      <input type="password" class="form-control" id="password" name="password" required placeholder="كلمة المرور">
+    </div>
+
+    <!-- كود المعلم -->
+    <div class="mb-3">
+      <label for="teacher_code" class="form-label">كود المعلم</label>
+      <input type="text" class="form-control" id="teacher_code" name="teacher_code" placeholder="مثلاً: T123">
+    </div>
+
+    <!-- الدور (teacher) مخفي -->
+    <input type="hidden" name="role" value="teacher">
+
+    <!-- رقم المدرسة من الجلسة -->
+    <input type="hidden" name="school_id" value="{{ session.get('school_id') }}">
+
+    <div class="text-center mt-4">
+      <button type="submit" class="btn btn-primary px-4">إضافة المعلم</button>
+      <a href="{{ url_for('user_bp.list_users') }}" class="btn btn-secondary px-4">إلغاء</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
