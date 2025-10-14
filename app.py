@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template, session, redirect, url_for
+from flask import Flask, jsonify, render_template, session, redirect, url_for, request, flash
 
 # --- Blueprints ---
 from routes.user import user_bp
@@ -13,10 +13,11 @@ from routes.tracking import tracking_bp
 from routes.auth import auth_bp
 from routes.pages.smart import smart_bp
 
-# --- استيراد الدالة الصحيحة لجلب الصفوف حسب المدرسة ---
-from models.classes import filter_classes_by_school
-from models.user import get_user_by_username  # ✅ استخدام هذا بدلاً من get_teacher_by_code
+# --- استيراد الدوال من الموديلات ---
+from models.classes import filter_classes_by_school, get_all_classes, get_class_by_id
+from models.user import get_user_by_username
 from models.school import get_all_schools
+from models.student import create_student, filter_students_by_school
 
 app = Flask(__name__, template_folder="templates")
 app.secret_key = "YOUR_SECRET_KEY"
@@ -108,10 +109,69 @@ def add_subject_page():
         'name': session.get('user_name')
     }
 
-    # جلب قائمة المدارس لعرضها في select عند إضافة المادة
     schools = get_all_schools()
-
     return render_template("add_subject.html", user=user, schools=schools)
+
+# ===========================================================
+# --- صفحة إضافة طلاب للـ Admin مع ظهور الشعبة في الجدول ---
+# ===========================================================
+@app.route("/add_student_page", methods=['GET', 'POST'])
+def add_student_page():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return redirect(url_for('auth_bp.login'))
+
+    user = {
+        'id': session.get('user_id'),
+        'role': session.get('user_role'),
+        'name': session.get('user_name')
+    }
+
+    school_id = session.get('school_id', 1)
+    all_classes = get_all_classes()
+    classes = []
+    sections = []
+
+    # تجهيز قوائم الصفوف والشعب للـ HTML
+    for cls in all_classes:
+        if cls['school_id'] == school_id:
+            if not any(c['id'] == cls['id'] for c in classes):
+                classes.append({'id': cls['id'], 'name': cls['class_name']})
+            sections.append({'class_id': cls['id'], 'name': cls['section']})
+
+    # جلب الطلاب وربط كل طالب بالصف والشعبة من جدول الصفوف
+    students = filter_students_by_school(school_id)
+    for student in students:
+        cls = get_class_by_id(student['class_id'])
+        if cls:
+            student['class_name'] = cls['class_name']
+            student['section'] = cls['section']  # الشعبة تظهر هنا
+        else:
+            student['class_name'] = "غير محدد"
+            student['section'] = "غير محدد"
+
+    if request.method == 'POST':
+        student_names = request.form.get('student_names')
+        class_id = request.form.get('class_id')
+
+        if not all([student_names, class_id]):
+            flash("جميع الحقول مطلوبة", "danger")
+        else:
+            names_list = [name.strip() for name in student_names.split('\n') if name.strip()]
+            added_students = []
+            for name in names_list:
+                create_student(name, school_id, class_id)  # لا نخزن الشعبة في جدول الطلاب
+                added_students.append(name)
+            flash(f"تم إضافة الطلاب بنجاح: {', '.join(added_students)}", "success")
+
+        return redirect(url_for('add_student_page'))
+
+    return render_template(
+        "add_student.html",
+        user=user,
+        classes=classes,
+        sections=sections,
+        students=students
+    )
 
 # ===========================================================
 # --- صفحة Smart ---

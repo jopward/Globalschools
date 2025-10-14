@@ -90,26 +90,81 @@ def verify_user(username, password):
         return user
     return None
 
+
 # ============================
-# Blueprint للمستخدمين
+# Blueprint للمعلمين (users)
 # ============================
-user_bp = Blueprint("user_bp", __name__, url_prefix="/users")
+user_bp = Blueprint("user_bp", __name__, url_prefix="/teachers")
+
 
 @user_bp.route("/")
-def list_users():
-    # هنا يمكن لاحقاً جلب جميع المستخدمين
-    return "صفحة جميع المستخدمين"
+def list_teachers():
+    """عرض جميع المعلمين"""
+    conn = get_connection()
+    cur = conn.cursor()
+    school_id = session.get("school_id")
+    cur.execute("SELECT * FROM users WHERE role='teacher' AND school_id=%s ORDER BY id DESC", (school_id,))
+    teachers = cur.fetchall()
+    cur.close()
+    conn.close()
+    return render_template("add_teacher.html", teachers=teachers)
 
+
+# ============================
+# صفحة إضافة معلم
+# ============================
 @user_bp.route("/add", methods=["GET", "POST"])
-def add_user_page():
+def add_teacher_page():
+    conn = get_connection()
+    cur = conn.cursor()
+    school_id = session.get("school_id")
+
     if request.method == "POST":
         name = request.form.get("name")
         username = request.form.get("username")
         password = request.form.get("password")
-        role = request.form.get("role")
-        school_id = request.form.get("school_id")
         teacher_code = request.form.get("teacher_code")
+        role = "teacher"  # الدور ثابت للمعلمين
+
         create_user(name, username, password, role, school_id, teacher_code)
-        flash("تم إضافة المستخدم بنجاح")
-        return redirect(url_for("user_bp.list_users"))
-    return render_template("add_user.html")
+        flash("✅ تم إضافة المعلم بنجاح")
+        return redirect(url_for("user_bp.add_teacher_page"))
+
+    # جلب جميع المعلمين للعرض في الجدول
+    cur.execute("SELECT * FROM users WHERE role='teacher' AND school_id=%s ORDER BY id DESC", (school_id,))
+    teachers = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return render_template("add_teacher.html", teachers=teachers)
+
+
+# ============================
+# حذف معلم
+# ============================
+@user_bp.route("/delete/<int:user_id>")
+def delete_teacher(user_id):
+    delete_user(user_id)
+    flash("🗑️ تم حذف المعلم بنجاح")
+    return redirect(url_for("user_bp.add_teacher_page"))
+
+
+# ============================
+# تعديل بيانات معلم
+# ============================
+@user_bp.route("/edit/<int:user_id>", methods=["GET", "POST"])
+def edit_teacher(user_id):
+    user = get_user_by_id(user_id)
+
+    if request.method == "POST":
+        name = request.form.get("name")
+        username = request.form.get("username")
+        password = request.form.get("password")
+        teacher_code = request.form.get("teacher_code")
+
+        update_user(user_id, name=name, username=username, password=password, teacher_code=teacher_code)
+        flash("✏️ تم تعديل بيانات المعلم بنجاح")
+        return redirect(url_for("user_bp.add_teacher_page"))
+
+    return render_template("edit_teacher.html", user=user)

@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, session, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from models.teacher import (
     create_teacher,
     get_teacher_by_id,
@@ -9,119 +9,129 @@ from models.teacher import (
     filter_teachers_by_school,
     get_teacher_subjects
 )
-from functools import wraps
+from models.subjects import get_all_subjects
+from werkzeug.security import check_password_hash
 
+
+#bcrypt = Bcrypt()
 teacher_bp = Blueprint('teacher_bp', __name__)
 
 # ============================
-# ديكوريتور للتحقق من تسجيل الدخول والصلاحية
+# عرض قائمة المعلمين
 # ============================
-def login_required(role=None):
-    def decorator(f):
-        @wraps(f)
-        def wrapper(*args, **kwargs):
-            user = session.get('user')
-            if not user:
-                flash("يجب تسجيل الدخول أولاً")
-                return redirect(url_for('auth.login'))
-            if role and user.get('role') != role:
-                flash("لا تمتلك صلاحية الوصول لهذه الصفحة")
-                return redirect(url_for('auth.login'))
-            return f(*args, **kwargs)
-        return wrapper
-    return decorator
+@teacher_bp.route('/teachers')
+def teachers_list():
+    if 'user_id' not in session:
+        flash("الرجاء تسجيل الدخول أولاً", "warning")
+        return redirect(url_for("auth_bp.login"))
 
-
-# ============================
-# CRUD للمعلمين
-# ============================
-
-@teacher_bp.route('/teachers', methods=['POST'])
-@login_required(role='admin')  # فقط admin يقدر يضيف معلم
-def add_teacher():
-    data = request.json
-    name = data.get('name')
-    username = data.get('username')
-    password = data.get('password')
-    school_id = data.get('school_id')
-    subjects = data.get('subjects', [])
-    teacher_code = data.get('teacher_code')  # ✅ الكود الجديد
-
-    if not all([name, username, password, school_id, teacher_code]):
-        return jsonify({"error": "جميع الحقول مطلوبة"}), 400
-
-    teacher_id = create_teacher(name, username, password, school_id, subjects, teacher_code)
-    return jsonify({"message": "تم إضافة المعلم", "teacher_id": teacher_id})
-
-
-@teacher_bp.route('/teachers', methods=['GET'])
-@login_required()  # أي مستخدم مسجل دخول يمكنه الوصول
-def list_teachers():
-    teachers = get_all_teachers()
-    return jsonify(teachers)
-
-
-@teacher_bp.route('/teachers/<int:teacher_id>', methods=['GET'])
-@login_required()
-def get_teacher(teacher_id):
-    teacher = get_teacher_by_id(teacher_id)
-    if not teacher:
-        return jsonify({"error": "المعلم غير موجود"}), 404
-    return jsonify(teacher)
-
-
-@teacher_bp.route('/teachers/<int:teacher_id>', methods=['PUT'])
-@login_required(role='admin')
-def edit_teacher(teacher_id):
-    data = request.json
-    updated = update_teacher(
-        teacher_id,
-        name=data.get('name'),
-        username=data.get('username'),
-        password=data.get('password'),
-        school_id=data.get('school_id'),
-        teacher_code=data.get('teacher_code')  # ✅ تعديل الكود هنا أيضًا
-    )
-    if updated:
-        return jsonify({"message": "تم تحديث المعلم"})
-    return jsonify({"error": "فشل التحديث"}), 400
-
-
-@teacher_bp.route('/teachers/<int:teacher_id>', methods=['DELETE'])
-@login_required(role='admin')
-def remove_teacher(teacher_id):
-    deleted = delete_teacher(teacher_id)
-    if deleted:
-        return jsonify({"message": "تم حذف المعلم"})
-    return jsonify({"error": "فشل الحذف"}), 400
-
-
-# ============================
-# البحث والفلترة
-# ============================
-
-@teacher_bp.route('/teachers/search', methods=['GET'])
-@login_required()
-def search_teacher():
-    keyword = request.args.get('q')
-    if not keyword:
-        return jsonify({"error": "يرجى إدخال كلمة البحث"}), 400
-    teachers = search_teachers_by_name(keyword)
-    return jsonify(teachers)
-
-
-@teacher_bp.route('/teachers/filter/school', methods=['GET'])
-@login_required()
-def filter_teacher_school():
-    school_id = request.args.get('school_id')
-    if not school_id:
-        return jsonify({"error": "يرجى إدخال معرف المدرسة"}), 400
+    school_id = session.get("school_id")
     teachers = filter_teachers_by_school(school_id)
-    return jsonify(teachers)
+    return render_template("teachers/list.html", teachers=teachers)
 
+# ============================
+# صفحة إضافة معلم جديد
+# ============================
+@teacher_bp.route('/teachers/add', methods=['GET', 'POST'])
+def add_teacher():
+    if 'user_id' not in session:
+        flash("الرجاء تسجيل الدخول أولاً", "warning")
+        return redirect(url_for("auth_bp.login"))
 
-@teacher_bp.route('/teachers/<int:teacher_id>/subjects', methods=['GET'])
-@login_required()
-def teacher_subjects(teacher_id):
-    subjects = get_teacher_subjects(teacher_id)
-    return jsonify(subjects)
+    school_id = session.get("school_id")
+    subjects = get_all_subjects()
+
+    if request.method == 'POST':
+        name = request.form.get('name')
+        username = request.form.get('username')
+        password = request.form.get('password')
+        teacher_code = request.form.get('teacher_code')
+        selected_subjects = request.form.getlist('subjects')
+
+        if not all([name, username, password]):
+            flash("يرجى تعبئة جميع الحقول المطلوبة", "danger")
+            return redirect(url_for('teacher_bp.add_teacher'))
+
+        teacher_id = create_teacher(
+            name=name,
+            username=username,
+            password=password,
+            school_id=school_id,
+            teacher_code=teacher_code,
+            subjects=selected_subjects
+        )
+
+        flash("تمت إضافة المعلم بنجاح", "success")
+        return redirect(url_for('teacher_bp.teachers_list'))
+
+    return render_template("teachers/add.html", subjects=subjects)
+
+# ============================
+# تعديل بيانات المعلم
+# ============================
+@teacher_bp.route('/teachers/edit/<int:teacher_id>', methods=['GET', 'POST'])
+def edit_teacher(teacher_id):
+    if 'user_id' not in session:
+        flash("الرجاء تسجيل الدخول أولاً", "warning")
+        return redirect(url_for("auth_bp.login"))
+
+    teacher = get_teacher_by_id(teacher_id)
+    subjects = get_all_subjects()
+    teacher_subjects = [s['id'] for s in get_teacher_subjects(teacher_id)]
+
+    if not teacher:
+        flash("لم يتم العثور على المعلم", "danger")
+        return redirect(url_for('teacher_bp.teachers_list'))
+
+    if request.method == 'POST':
+        name = request.form.get('name')
+        username = request.form.get('username')
+        password = request.form.get('password')
+        teacher_code = request.form.get('teacher_code')
+        selected_subjects = request.form.getlist('subjects')
+
+        update_teacher(
+            teacher_id=teacher_id,
+            name=name,
+            username=username,
+            password=password if password else None,
+            teacher_code=teacher_code
+        )
+
+        flash("تم تحديث بيانات المعلم بنجاح", "success")
+        return redirect(url_for('teacher_bp.teachers_list'))
+
+    return render_template("teachers/edit.html",
+                           teacher=teacher,
+                           subjects=subjects,
+                           teacher_subjects=teacher_subjects)
+
+# ============================
+# حذف معلم
+# ============================
+@teacher_bp.route('/teachers/delete/<int:teacher_id>')
+def delete_teacher_route(teacher_id):
+    if 'user_id' not in session:
+        flash("الرجاء تسجيل الدخول أولاً", "warning")
+        return redirect(url_for("auth_bp.login"))
+
+    delete_teacher(teacher_id)
+    flash("تم حذف المعلم بنجاح", "success")
+    return redirect(url_for('teacher_bp.teachers_list'))
+
+# ============================
+# البحث عن معلمين بالاسم
+# ============================
+@teacher_bp.route('/teachers/search', methods=['GET'])
+def search_teachers():
+    if 'user_id' not in session:
+        flash("الرجاء تسجيل الدخول أولاً", "warning")
+        return redirect(url_for("auth_bp.login"))
+
+    keyword = request.args.get('q', '')
+    if keyword:
+        teachers = search_teachers_by_name(keyword)
+    else:
+        teachers = get_all_teachers()
+
+    return render_template('teachers/list.html', teachers=teachers, search_query=keyword)

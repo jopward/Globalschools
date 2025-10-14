@@ -5,7 +5,7 @@ from db.db_setup import get_connection
 # ============================
 
 def create_student(student_name, school_id, class_id):
-    """إضافة طالب جديد"""
+    """إضافة طالب جديد بدون عمود section"""
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
@@ -39,7 +39,7 @@ def get_all_students():
     return students
 
 def update_student(student_id, student_name=None, school_id=None, class_id=None):
-    """تحديث بيانات الطالب"""
+    """تحديث بيانات الطالب بدون عمود section"""
     conn = get_connection()
     cur = conn.cursor()
     updates = []

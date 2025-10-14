@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h2 class="my-4">إدارة الطلاب</h2>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- إضافة طلاب جدد -->
+    <div class="card mb-4">
+        <div class="card-header">إضافة طلاب جدد</div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('add_student_page') }}">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <textarea name="student_names" class="form-control" placeholder="أدخل أسماء الطلاب، كل اسم في سطر جديد" rows="5" required></textarea>
+                    </div>
+                    <div class="col-md-3">
+                        <select name="class_id" id="class_id" class="form-select" required>
+                            <option value="">اختر الصف</option>
+                            {% for cls in classes %}
+                                <option value="{{ cls.id }}">{{ cls.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select name="section_name" id="section_name" class="form-select" required>
+                            <option value="">اختر الشعبة</option>
+                            {% for sec in sections %}
+                                <option value="{{ sec.name }}" data-class="{{ sec.class_id }}">{{ sec.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">إضافة الطلاب</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- جدول الطلاب -->
+    <div class="card">
+        <div class="card-header">قائمة الطلاب</div>
+        <div class="card-body">
+            <table class="table table-bordered table-striped">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>اسم الطالب</th>
+                        <th>الصف</th>
+                        <th>الشعبة</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in students %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ student.student_name }}</td>
+                            <td>
+                                {% for cls in classes %}
+                                    {% if cls.id == student.class_id %}
+                                        {{ cls.name }}
+                                    {% endif %}
+                                {% endfor %}
+                            </td>
+                            <td>{{ student.section_name or '-' }}</td>
+                            <td>
+                                <!-- تعديل -->
+                                <form method="POST" action="{{ url_for('student_bp.edit_student_route', student_id=student.id) }}" style="display:inline-block;">
+                                    <input type="hidden" name="student_name" value="{{ student.student_name }}">
+                                    <input type="hidden" name="class_id" value="{{ student.class_id }}">
+                                    <input type="hidden" name="section_name" value="{{ student.section_name }}">
+                                    <button class="btn btn-sm btn-warning">تعديل</button>
+                                </form>
+
+                                <!-- حذف -->
+                                <form method="POST" action="{{ url_for('student_bp.delete_student_route', student_id=student.id) }}" style="display:inline-block;">
+                                    <button class="btn btn-sm btn-danger" onclick="return confirm('هل أنت متأكد من الحذف؟')">حذف</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center">لا يوجد طلاب</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- جافاسكريبت لتصفية الشعب حسب الصف -->
+<script>
+    const classSelect = document.querySelector('select[name="class_id"]');
+    const sectionSelect = document.querySelector('select[name="section_name"]');
+    const allSections = Array.from(sectionSelect.options);
+
+    classSelect.addEventListener('change', function() {
+        const classId = this.value;
+        sectionSelect.innerHTML = '<option value="">اختر الشعبة</option>';
+        allSections.forEach(opt => {
+            if (opt.dataset.class == classId) {
+                sectionSelect.appendChild(opt.cloneNode(true));
+            }
+        });
+    });
+</script>
+{% endblock %}
