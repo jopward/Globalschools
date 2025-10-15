@@ -20,7 +20,11 @@
     <div class="card mb-4">
         <div class="card-header">إضافة طلاب جدد</div>
         <div class="card-body">
-            <form method="POST" action="{{ url_for('add_student_page') }}">
+            <form method="POST" action="{{ url_for('student_bp.manage_students') }}">
+                <!-- CSRF Token إذا تستخدم Flask-WTF -->
+                {% if csrf_token %}
+                    {{ csrf_token() }}
+                {% endif %}
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <textarea name="student_names" class="form-control" placeholder="أدخل أسماء الطلاب، كل اسم في سطر جديد" rows="5" required></textarea>
@@ -29,7 +33,7 @@
                         <select name="class_id" id="class_id" class="form-select" required>
                             <option value="">اختر الصف</option>
                             {% for cls in classes %}
-                                <option value="{{ cls.id }}">{{ cls.name }}</option>
+                                <option value="{{ cls.id }}">{{ cls.class_name or cls.name or 'غير محدد' }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -51,8 +55,8 @@
     <div class="card">
         <div class="card-header">قائمة الطلاب</div>
         <div class="card-body">
-            <table class="table table-bordered table-striped">
-                <thead>
+            <table class="table table-bordered table-striped align-middle text-center">
+                <thead class="table-light">
                     <tr>
                         <th>#</th>
                         <th>اسم الطالب</th>
@@ -66,20 +70,14 @@
                         <tr>
                             <td>{{ loop.index }}</td>
                             <td>{{ student.student_name }}</td>
-                            <td>
-                                {% for cls in classes %}
-                                    {% if cls.id == student.class_id %}
-                                        {{ cls.name }}
-                                    {% endif %}
-                                {% endfor %}
-                            </td>
-                            <td>{{ student.section_name or '-' }}</td>
+                            <td>{{ student.class_name or '-' }}</td>
+                            <td>{{ student.section or '-' }}</td>
                             <td>
                                 <!-- تعديل -->
                                 <form method="POST" action="{{ url_for('student_bp.edit_student_route', student_id=student.id) }}" style="display:inline-block;">
                                     <input type="hidden" name="student_name" value="{{ student.student_name }}">
                                     <input type="hidden" name="class_id" value="{{ student.class_id }}">
-                                    <input type="hidden" name="section_name" value="{{ student.section_name }}">
+                                    <input type="hidden" name="section_name" value="{{ student.section }}">
                                     <button class="btn btn-sm btn-warning">تعديل</button>
                                 </form>
 
@@ -91,7 +89,7 @@
                         </tr>
                     {% else %}
                         <tr>
-                            <td colspan="5" class="text-center">لا يوجد طلاب</td>
+                            <td colspan="5" class="text-center text-muted">لا يوجد طلاب</td>
                         </tr>
                     {% endfor %}
                 </tbody>
@@ -102,18 +100,28 @@
 
 <!-- جافاسكريبت لتصفية الشعب حسب الصف -->
 <script>
-    const classSelect = document.querySelector('select[name="class_id"]');
-    const sectionSelect = document.querySelector('select[name="section_name"]');
-    const allSections = Array.from(sectionSelect.options);
+    const classSelect = document.querySelector('#class_id');
+    const sectionSelect = document.querySelector('#section_name');
 
-    classSelect.addEventListener('change', function() {
-        const classId = this.value;
+    // نسخ جميع خيارات الشعب الأصلية
+    const allSections = Array.from(sectionSelect.querySelectorAll('option')).filter(opt => opt.value);
+
+    function filterSections() {
+        const classId = classSelect.value;
         sectionSelect.innerHTML = '<option value="">اختر الشعبة</option>';
+
         allSections.forEach(opt => {
-            if (opt.dataset.class == classId) {
+            if (!classId || opt.dataset.class.toString() === classId.toString()) {
                 sectionSelect.appendChild(opt.cloneNode(true));
             }
         });
-    });
+    }
+
+    classSelect.addEventListener('change', filterSections);
+
+    // تصفية عند تحميل الصفحة إذا كان هناك صف محدد مسبقًا
+    if (classSelect.value) {
+        filterSections();
+    }
 </script>
 {% endblock %}
