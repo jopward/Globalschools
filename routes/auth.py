@@ -8,13 +8,17 @@ auth_bp = Blueprint('auth_bp', __name__, url_prefix='/auth')
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form['username'].strip()
-        password = request.form['password'].strip()
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
+
+        if not username or not password:
+            flash('الرجاء إدخال اسم المستخدم وكلمة المرور.', 'warning')
+            return redirect(url_for('auth_bp.login'))
 
         # التحقق من المستخدم
         user = verify_user(username, password)
         if not user:
-            flash('اسم المستخدم أو كلمة المرور غير صحيحة.')
+            flash('اسم المستخدم أو كلمة المرور غير صحيحة.', 'danger')
             return redirect(url_for('auth_bp.login'))
 
         # حفظ بيانات المستخدم في الجلسة مع school_id
@@ -38,7 +42,7 @@ def login():
 @auth_bp.route('/logout')
 def logout():
     session.clear()
-    flash('تم تسجيل الخروج بنجاح.')
+    flash('تم تسجيل الخروج بنجاح.', 'success')
     return redirect(url_for('auth_bp.login'))
 
 
@@ -46,7 +50,7 @@ def logout():
 @auth_bp.route('/superadmin')
 def superadmin_page():
     if session.get('user_role') != 'superadmin':
-        flash('لا تمتلك صلاحية الوصول لهذه الصفحة')
+        flash('لا تمتلك صلاحية الوصول لهذه الصفحة', 'danger')
         return redirect(url_for('auth_bp.login'))
 
     schools = get_all_schools()
@@ -67,18 +71,18 @@ def register():
 
         # التحقق من الحقول العامة
         if not name or not username or not password or not role or not school_id:
-            flash('الرجاء تعبئة جميع الحقول المطلوبة.')
+            flash('الرجاء تعبئة جميع الحقول المطلوبة.', 'warning')
             return redirect(url_for('auth_bp.register'))
 
         # إذا كان الدور Teacher، التحقق من وجود teacher_code
         if role == 'teacher' and not teacher_code:
-            flash('يرجى إدخال كود المعلم.')
+            flash('يرجى إدخال كود المعلم.', 'warning')
             return redirect(url_for('auth_bp.register'))
 
         # التحقق من وجود المستخدم مسبقًا
         existing_user = get_user_by_username(username)
         if existing_user:
-            flash('اسم المستخدم موجود مسبقًا.')
+            flash('اسم المستخدم موجود مسبقًا.', 'danger')
             return redirect(url_for('auth_bp.register'))
 
         # إنشاء المستخدم
@@ -91,7 +95,7 @@ def register():
             teacher_code if role == 'teacher' else None
         )
 
-        flash('تم إنشاء الحساب بنجاح! يمكنك تسجيل الدخول الآن.')
+        flash('تم إنشاء الحساب بنجاح! يمكنك تسجيل الدخول الآن.', 'success')
         return redirect(url_for('auth_bp.login'))
 
     return render_template('register.html', schools=schools)
