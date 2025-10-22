@@ -21,28 +21,28 @@
         <div class="card-header">إضافة طلاب جدد</div>
         <div class="card-body">
             <form method="POST" action="{{ url_for('student_bp.manage_students') }}">
-                <!-- CSRF Token إذا تستخدم Flask-WTF -->
                 {% if csrf_token %}
                     {{ csrf_token() }}
                 {% endif %}
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <!-- ✅ تم تعديل اسم الحقل -->
-                        <textarea name="student_name[]" class="form-control" placeholder="أدخل أسماء الطلاب، كل اسم في سطر جديد" rows="5" required></textarea>
+                        <textarea name="student_names" class="form-control" placeholder="أدخل أسماء الطلاب، كل اسم في سطر جديد" rows="5" required></textarea>
                     </div>
                     <div class="col-md-3">
                         <select name="class_id" id="class_id" class="form-select" required>
                             <option value="">اختر الصف</option>
                             {% for cls in classes %}
-                                <option value="{{ cls.id }}">{{ cls.class_name or cls.name or 'غير محدد' }}</option>
+                                <option value="{{ cls.id }}">{{ cls.class_name }}</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="col-md-3">
                         <select name="section_name" id="section_name" class="form-select" required>
                             <option value="">اختر الشعبة</option>
-                            {% for sec in sections %}
-                                <option value="{{ sec.name }}" data-class="{{ sec.class_id }}">{{ sec.name }}</option>
+                            {% for cls in classes %}
+                                {% if cls.section %}
+                                    <option value="{{ cls.section }}" data-class="{{ cls.id }}">{{ cls.section }}</option>
+                                {% endif %}
                             {% endfor %}
                         </select>
                     </div>
@@ -79,12 +79,16 @@
                                     <input type="hidden" name="student_name" value="{{ student.student_name }}">
                                     <input type="hidden" name="class_id" value="{{ student.class_id }}">
                                     <input type="hidden" name="section_name" value="{{ student.section }}">
-                                    <button class="btn btn-sm btn-warning">تعديل</button>
+                                    <button class="btn btn-sm btn-warning" title="تعديل">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
                                 </form>
 
                                 <!-- حذف -->
                                 <form method="POST" action="{{ url_for('student_bp.delete_student_route', student_id=student.id) }}" style="display:inline-block;">
-                                    <button class="btn btn-sm btn-danger" onclick="return confirm('هل أنت متأكد من الحذف؟')">حذف</button>
+                                    <button class="btn btn-sm btn-danger" title="حذف" onclick="return confirm('هل أنت متأكد من الحذف؟')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
                                 </form>
                             </td>
                         </tr>
@@ -99,12 +103,10 @@
     </div>
 </div>
 
-<!-- جافاسكريبت لتصفية الشعب حسب الصف -->
 <script>
     const classSelect = document.querySelector('#class_id');
     const sectionSelect = document.querySelector('#section_name');
 
-    // نسخ جميع خيارات الشعب الأصلية
     const allSections = Array.from(sectionSelect.querySelectorAll('option')).filter(opt => opt.value);
 
     function filterSections() {
@@ -120,7 +122,6 @@
 
     classSelect.addEventListener('change', filterSections);
 
-    // تصفية عند تحميل الصفحة إذا كان هناك صف محدد مسبقًا
     if (classSelect.value) {
         filterSections();
     }

@@ -1,5 +1,6 @@
 from db.db_setup import get_connection
 from werkzeug.security import generate_password_hash, check_password_hash
+import psycopg2.extras
 
 # ============================
 # دوال CRUD للمستخدمين
@@ -9,29 +10,15 @@ from werkzeug.security import generate_password_hash, check_password_hash
 # إضافة مستخدم جديد
 # ----------------------------
 def create_user(name, username, password, role, school_id=None, teacher_code=None):
-    """
-    إضافة مستخدم جديد إلى قاعدة البيانات.
-    
-    المعاملات:
-    - name: اسم المستخدم
-    - username: اسم المستخدم الفريد
-    - password: كلمة المرور (ستتحول إلى هاش)
-    - role: نوع المستخدم (superadmin / admin / teacher)
-    - school_id: معرف المدرسة (اختياري)
-    - teacher_code: رقم تعريف المعلم (اختياري، فقط للمعلمين)
-    
-    الإرجاع:
-    - id المستخدم الذي تم إضافته
-    """
     conn = get_connection()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)  # ✅ DictCursor
     hashed_pw = generate_password_hash(password)
     cur.execute("""
         INSERT INTO users (name, username, password, role, school_id, teacher_code)
         VALUES (%s, %s, %s, %s, %s, %s)
         RETURNING id
     """, (name, username, hashed_pw, role, school_id, teacher_code))
-    user_id = cur.fetchone()['id']
+    user_id = cur.fetchone()['id']  # الآن ['id'] يعمل بدون مشكلة
     conn.commit()
     cur.close()
     conn.close()
@@ -42,7 +29,7 @@ def create_user(name, username, password, role, school_id=None, teacher_code=Non
 # ----------------------------
 def get_user_by_id(user_id):
     conn = get_connection()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     cur.execute("SELECT * FROM users WHERE id = %s", (user_id,))
     user = cur.fetchone()
     cur.close()
@@ -54,7 +41,7 @@ def get_user_by_id(user_id):
 # ----------------------------
 def get_user_by_username(username):
     conn = get_connection()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     cur.execute("SELECT * FROM users WHERE username = %s", (username,))
     user = cur.fetchone()
     cur.close()

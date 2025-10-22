@@ -41,30 +41,26 @@ def manage_students():
     user = session.get('user')
     school_id = user.get('school_id')
 
-    # --- إضافة طالب أو مجموعة طلاب ---
     if request.method == 'POST':
-        # استقبال بيانات الطلاب على شكل قائمة من الأسماء (من form متعدد)
-        student_names = request.form.getlist('student_name[]')
+        # استقبال أسماء الطلاب من textarea (سطر لكل اسم)
+        student_names_text = request.form.get('student_names')
         class_id = request.form.get('class_id')
 
-        if not student_names or not class_id:
+        if not student_names_text or not class_id:
             flash("يرجى تعبئة جميع الحقول المطلوبة", "danger")
         else:
+            student_names = [name.strip() for name in student_names_text.splitlines() if name.strip()]
             added_count = 0
             for name in student_names:
-                name = name.strip()
-                if name:  # فقط الأسماء غير الفارغة
-                    create_student(name, school_id, class_id)
-                    added_count += 1
+                create_student(name, school_id, class_id)
+                added_count += 1
             flash(f"تم إضافة {added_count} طالب{'اً' if added_count == 1 else 'اً'} بنجاح", "success")
 
-        # العودة لنفس الصفحة بدون خروج أو خطأ
         return redirect(url_for('student_bp.manage_students'))
 
-    # --- عرض الطلاب ---
+    # عرض جميع الطلاب حسب مدرسة المستخدم
     students = filter_students_by_school(school_id)
     classes = get_all_classes(school_id)
-
     return render_template('add_student.html', students=students, classes=classes)
 
 # ============================
@@ -124,7 +120,7 @@ def search_student():
         return jsonify({"error": "يرجى إدخال كلمة البحث"}), 400
 
     students = search_students_by_name(keyword)
-    students = [s for s in students if s[2] == school_id]  # التحقق من مدرسة المستخدم
+    students = [s for s in students if s[2] == school_id]
 
     return jsonify(students)
 

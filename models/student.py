@@ -1,19 +1,20 @@
 from db.db_setup import get_connection
+import psycopg2.extras
 
 # ============================
-# CRUD ودوال الطلاب
+# CRUD ودوال الطلاب مع الصف والشعبة
 # ============================
 
 def create_student(student_name, school_id, class_id):
-    """إضافة طالب جديد (بدون عمود section)"""
+    """إضافة طالب جديد"""
     conn = get_connection()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     try:
         cur.execute("""
             INSERT INTO students (student_name, school_id, class_id)
             VALUES (%s, %s, %s) RETURNING id
         """, (student_name, school_id, class_id))
-        student_id = cur.fetchone()[0]  # ✅ إرجاع أول عنصر من النتيجة (ID)
+        student_id = cur.fetchone()['id']
         conn.commit()
         return student_id
     finally:
@@ -22,23 +23,34 @@ def create_student(student_name, school_id, class_id):
 
 
 def get_student_by_id(student_id):
-    """استرجاع طالب حسب المعرف ID"""
+    """استرجاع طالب حسب المعرف ID مع اسم الصف والشعبة"""
     conn = get_connection()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     try:
-        cur.execute("SELECT * FROM students WHERE id = %s", (student_id,))
+        cur.execute("""
+            SELECT s.*, tc.class_name, tc.section
+            FROM students s
+            LEFT JOIN teacher_classes tc ON s.class_id = tc.id
+            WHERE s.id = %s
+        """, (student_id,))
         return cur.fetchone()
     finally:
         cur.close()
         conn.close()
 
 
-def get_all_students():
-    """استرجاع جميع الطلاب"""
+def get_all_students(school_id):
+    """استرجاع جميع الطلاب مع اسم الصف والشعبة حسب المدرسة"""
     conn = get_connection()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     try:
-        cur.execute("SELECT * FROM students ORDER BY id DESC")
+        cur.execute("""
+            SELECT s.*, tc.class_name, tc.section
+            FROM students s
+            LEFT JOIN teacher_classes tc ON s.class_id = tc.id
+            WHERE s.school_id = %s
+            ORDER BY s.id DESC
+        """, (school_id,))
         return cur.fetchall()
     finally:
         cur.close()
@@ -89,18 +101,28 @@ def delete_student(student_id):
 
 
 # ============================
-# البحث والفلترة
+# البحث والفلترة مع الصف والشعبة
 # ============================
 
-def search_students_by_name(keyword):
+def search_students_by_name(keyword, school_id=None):
     """البحث عن الطلاب بالاسم"""
     conn = get_connection()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     try:
-        cur.execute(
-            "SELECT * FROM students WHERE student_name ILIKE %s",
-            (f"%{keyword}%",)
-        )
+        if school_id:
+            cur.execute("""
+                SELECT s.*, tc.class_name, tc.section
+                FROM students s
+                LEFT JOIN teacher_classes tc ON s.class_id = tc.id
+                WHERE s.student_name ILIKE %s AND s.school_id = %s
+            """, (f"%{keyword}%", school_id))
+        else:
+            cur.execute("""
+                SELECT s.*, tc.class_name, tc.section
+                FROM students s
+                LEFT JOIN teacher_classes tc ON s.class_id = tc.id
+                WHERE s.student_name ILIKE %s
+            """, (f"%{keyword}%",))
         return cur.fetchall()
     finally:
         cur.close()
@@ -110,9 +132,14 @@ def search_students_by_name(keyword):
 def filter_students_by_class(class_id):
     """فلترة الطلاب حسب الصف"""
     conn = get_connection()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     try:
-        cur.execute("SELECT * FROM students WHERE class_id = %s", (class_id,))
+        cur.execute("""
+            SELECT s.*, tc.class_name, tc.section
+            FROM students s
+            LEFT JOIN teacher_classes tc ON s.class_id = tc.id
+            WHERE s.class_id = %s
+        """, (class_id,))
         return cur.fetchall()
     finally:
         cur.close()
@@ -122,9 +149,14 @@ def filter_students_by_class(class_id):
 def filter_students_by_school(school_id):
     """فلترة الطلاب حسب المدرسة"""
     conn = get_connection()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     try:
-        cur.execute("SELECT * FROM students WHERE school_id = %s", (school_id,))
+        cur.execute("""
+            SELECT s.*, tc.class_name, tc.section
+            FROM students s
+            LEFT JOIN teacher_classes tc ON s.class_id = tc.id
+            WHERE s.school_id = %s
+        """, (school_id,))
         return cur.fetchall()
     finally:
         cur.close()
