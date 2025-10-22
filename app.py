@@ -36,6 +36,18 @@ app.register_blueprint(tracking_bp, url_prefix='/tracking')
 app.register_blueprint(smart_bp, url_prefix='/smart')
 
 # ===========================================================
+# --- مؤقت لتجربة تسجيل الدخول ---
+# ===========================================================
+@app.before_request
+def inject_user():
+    if 'user_id' not in session:
+        # مؤقتًا لإضافة مستخدم تجريبي
+        session['user_id'] = 1
+        session['user_name'] = 'admin'
+        session['user_role'] = 'admin'
+        session['school_id'] = 1
+
+# ===========================================================
 # --- الصفحة الرئيسية / لوحة التحكم ---
 # ===========================================================
 @app.route("/")
@@ -144,22 +156,23 @@ def add_student_page():
         cls = get_class_by_id(student['class_id'])
         if cls:
             student['class_name'] = cls['class_name']
-            student['section'] = cls['section']  # الشعبة تظهر هنا
+            student['section'] = cls['section']
         else:
             student['class_name'] = "غير محدد"
             student['section'] = "غير محدد"
 
     if request.method == 'POST':
-        student_names = request.form.get('student_names')
+        student_text = request.form.get('student_names', '').strip()
         class_id = request.form.get('class_id')
+        section_name = request.form.get('section_name')
 
-        if not all([student_names, class_id]):
+        if not student_text or not class_id or not section_name:
             flash("جميع الحقول مطلوبة", "danger")
         else:
-            names_list = [name.strip() for name in student_names.split('\n') if name.strip()]
+            names_list = [name.strip() for name in student_text.split('\n') if name.strip()]
             added_students = []
             for name in names_list:
-                create_student(name, school_id, class_id)  # لا نخزن الشعبة في جدول الطلاب
+                create_student(name, school_id, class_id, section_name)
                 added_students.append(name)
             flash(f"تم إضافة الطلاب بنجاح: {', '.join(added_students)}", "success")
 

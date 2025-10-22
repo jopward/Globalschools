@@ -21,13 +21,17 @@ def login():
             flash('اسم المستخدم أو كلمة المرور غير صحيحة.', 'danger')
             return redirect(url_for('auth_bp.login'))
 
-        # حفظ بيانات المستخدم في الجلسة مع school_id
-        session['user_id'] = user['id']
-        session['user_role'] = user['role']
-        session['user_name'] = user['name']
-        session['school_id'] = user.get('school_id')
-        if user['role'] == 'teacher':
-            session['teacher_code'] = user.get('teacher_code')  # حفظ كود المعلم
+        # ✅ حفظ بيانات المستخدم في الجلسة في كائن واحد
+        session['user'] = {
+            'id': user['id'],
+            'name': user['name'],
+            'username': user['username'],
+            'role': user['role'],
+            'school_id': user.get('school_id'),
+            'teacher_code': user.get('teacher_code') if user['role'] == 'teacher' else None
+        }
+
+        flash(f"مرحباً {user['name']}!", "success")
 
         # توجيه المستخدم حسب دوره
         if user['role'] == 'superadmin':
@@ -49,12 +53,13 @@ def logout():
 # --- صفحة Super Admin ---
 @auth_bp.route('/superadmin')
 def superadmin_page():
-    if session.get('user_role') != 'superadmin':
+    user = session.get('user')
+    if not user or user.get('role') != 'superadmin':
         flash('لا تمتلك صلاحية الوصول لهذه الصفحة', 'danger')
         return redirect(url_for('auth_bp.login'))
 
     schools = get_all_schools()
-    return render_template('superadmin.html', user=session.get('user_name'), schools=schools)
+    return render_template('superadmin.html', user=user['name'], schools=schools)
 
 
 # --- صفحة التسجيل (Register) ---
@@ -86,7 +91,7 @@ def register():
             return redirect(url_for('auth_bp.register'))
 
         # إنشاء المستخدم
-        user_id = create_user(
+        create_user(
             name,
             username,
             password,

@@ -5,7 +5,7 @@ from db.db_setup import get_connection
 # ============================
 
 def create_student(student_name, school_id, class_id):
-    """إضافة طالب جديد بدون عمود section"""
+    """إضافة طالب جديد (بدون عمود section)"""
     conn = get_connection()
     cur = conn.cursor()
     try:
@@ -13,7 +13,7 @@ def create_student(student_name, school_id, class_id):
             INSERT INTO students (student_name, school_id, class_id)
             VALUES (%s, %s, %s) RETURNING id
         """, (student_name, school_id, class_id))
-        student_id = cur.fetchone()[0]  # ✅ استخدم [0] بدل ['id']
+        student_id = cur.fetchone()[0]  # ✅ إرجاع أول عنصر من النتيجة (ID)
         conn.commit()
         return student_id
     finally:
@@ -22,11 +22,11 @@ def create_student(student_name, school_id, class_id):
 
 
 def get_student_by_id(student_id):
-    """استرجاع طالب حسب ID"""
+    """استرجاع طالب حسب المعرف ID"""
     conn = get_connection()
     cur = conn.cursor()
     try:
-        cur.execute("SELECT * FROM students WHERE id=%s", (student_id,))
+        cur.execute("SELECT * FROM students WHERE id = %s", (student_id,))
         return cur.fetchone()
     finally:
         cur.close()
@@ -38,7 +38,7 @@ def get_all_students():
     conn = get_connection()
     cur = conn.cursor()
     try:
-        cur.execute("SELECT * FROM students")
+        cur.execute("SELECT * FROM students ORDER BY id DESC")
         return cur.fetchall()
     finally:
         cur.close()
@@ -54,17 +54,17 @@ def update_student(student_id, student_name=None, school_id=None, class_id=None)
         values = []
 
         if student_name:
-            updates.append("student_name=%s")
+            updates.append("student_name = %s")
             values.append(student_name)
         if school_id:
-            updates.append("school_id=%s")
+            updates.append("school_id = %s")
             values.append(school_id)
         if class_id:
-            updates.append("class_id=%s")
+            updates.append("class_id = %s")
             values.append(class_id)
 
         if updates:
-            query = f"UPDATE students SET {', '.join(updates)} WHERE id=%s"
+            query = f"UPDATE students SET {', '.join(updates)} WHERE id = %s"
             values.append(student_id)
             cur.execute(query, tuple(values))
             conn.commit()
@@ -80,7 +80,7 @@ def delete_student(student_id):
     conn = get_connection()
     cur = conn.cursor()
     try:
-        cur.execute("DELETE FROM students WHERE id=%s", (student_id,))
+        cur.execute("DELETE FROM students WHERE id = %s", (student_id,))
         conn.commit()
         return True
     finally:
@@ -112,7 +112,7 @@ def filter_students_by_class(class_id):
     conn = get_connection()
     cur = conn.cursor()
     try:
-        cur.execute("SELECT * FROM students WHERE class_id=%s", (class_id,))
+        cur.execute("SELECT * FROM students WHERE class_id = %s", (class_id,))
         return cur.fetchall()
     finally:
         cur.close()
@@ -124,7 +124,7 @@ def filter_students_by_school(school_id):
     conn = get_connection()
     cur = conn.cursor()
     try:
-        cur.execute("SELECT * FROM students WHERE school_id=%s", (school_id,))
+        cur.execute("SELECT * FROM students WHERE school_id = %s", (school_id,))
         return cur.fetchall()
     finally:
         cur.close()

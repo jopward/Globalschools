@@ -1,5 +1,7 @@
 <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm">
   <div class="container">
+
+    <!-- شعار النظام على الشمال -->
     <a class="navbar-brand fw-bold text-primary" href="{{ url_for('dashboard') }}">نظام الحضور</a>
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
@@ -8,44 +10,37 @@
     </button>
 
     <div class="collapse navbar-collapse" id="navbarNav">
-      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
 
-        <!-- لوحة الحضور -->
+      <!-- الثلاث روابط الأولى على اليمين -->
+      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
         <li class="nav-item">
           <a class="nav-link" href="{{ url_for('dashboard') }}">لوحة الحضور</a>
         </li>
-
-        <!-- الطلاب -->
         <li class="nav-item">
           <a class="nav-link" href="{{ url_for('add_student_page') }}">الطلاب</a>
         </li>
-
-        <!-- المعلمون -->
         <li class="nav-item">
           <a class="nav-link" href="{{ url_for('user_bp.add_teacher_page') }}">المعلمون</a>
         </li>
+      </ul>
 
-        <!-- الصفوف -->
+      <!-- باقي الروابط على اليمين بعد الثلاثة -->
+      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
         <li class="nav-item">
           <a class="nav-link" href="{{ url_for('classes_page') }}">الصفوف</a>
         </li>
-
-        <!-- المواد -->
         <li class="nav-item">
           <a class="nav-link" href="{{ url_for('add_subject_page') }}">المواد</a>
         </li>
-
-        <!-- المدارس -->
         <li class="nav-item">
           <a class="nav-link" href="{{ url_for('superadmin_page') }}">المدارس</a>
         </li>
-
-        <!-- تسجيل خروج -->
         <li class="nav-item">
           <a class="nav-link text-danger fw-bold" href="{{ url_for('auth_bp.logout') }}">تسجيل خروج</a>
         </li>
-
       </ul>
+
     </div>
+
   </div>
 </nav>

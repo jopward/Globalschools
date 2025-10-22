@@ -33,11 +33,17 @@ def get_class_by_id(class_id):
     conn.close()
     return class_
 
-def get_all_classes():
-    """استرجاع جميع الصفوف"""
+def get_all_classes(school_id=None):
+    """
+    استرجاع جميع الصفوف
+    مع إمكانية الفلترة حسب المدرسة
+    """
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM teacher_classes")
+    if school_id:
+        cur.execute("SELECT * FROM teacher_classes WHERE school_id=%s ORDER BY id", (school_id,))
+    else:
+        cur.execute("SELECT * FROM teacher_classes ORDER BY id")
     classes = cur.fetchall()
     cur.close()
     conn.close()

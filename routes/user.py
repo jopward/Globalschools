@@ -15,11 +15,12 @@ def create_user(name, username, password, role, school_id=None, teacher_code=Non
         VALUES (%s, %s, %s, %s, %s, %s)
         RETURNING id
     """, (name, username, hashed_pw, role, school_id, teacher_code))
-    user_id = cur.fetchone()['id']
+    user_id = cur.fetchone()[0]  # ✅ تعديل بسيط: fetchone() تُرجع tuple وليس dict
     conn.commit()
     cur.close()
     conn.close()
     return user_id
+
 
 def get_user_by_id(user_id):
     conn = get_connection()
@@ -30,6 +31,7 @@ def get_user_by_id(user_id):
     conn.close()
     return user
 
+
 def get_user_by_username(username):
     conn = get_connection()
     cur = conn.cursor()
@@ -38,6 +40,7 @@ def get_user_by_username(username):
     cur.close()
     conn.close()
     return user
+
 
 def update_user(user_id, name=None, username=None, password=None, role=None, school_id=None, teacher_code=None):
     conn = get_connection()
@@ -75,6 +78,7 @@ def update_user(user_id, name=None, username=None, password=None, role=None, sch
     conn.close()
     return True
 
+
 def delete_user(user_id):
     conn = get_connection()
     cur = conn.cursor()
@@ -83,6 +87,7 @@ def delete_user(user_id):
     cur.close()
     conn.close()
     return True
+
 
 def verify_user(username, password):
     user = get_user_by_username(username)
@@ -94,6 +99,7 @@ def verify_user(username, password):
 # ============================
 # Blueprint للمعلمين (users)
 # ============================
+
 user_bp = Blueprint("user_bp", __name__, url_prefix="/teachers")
 
 
@@ -102,7 +108,13 @@ def list_teachers():
     """عرض جميع المعلمين"""
     conn = get_connection()
     cur = conn.cursor()
-    school_id = session.get("school_id")
+
+    user = session.get("user")  # ✅ نستخدم الجلسة الجديدة
+    if not user:
+        flash("يرجى تسجيل الدخول أولاً", "warning")
+        return redirect(url_for("auth_bp.login"))
+
+    school_id = user.get("school_id")
     cur.execute("SELECT * FROM users WHERE role='teacher' AND school_id=%s ORDER BY id DESC", (school_id,))
     teachers = cur.fetchall()
     cur.close()
@@ -117,7 +129,13 @@ def list_teachers():
 def add_teacher_page():
     conn = get_connection()
     cur = conn.cursor()
-    school_id = session.get("school_id")
+
+    user = session.get("user")  # ✅ تعديل
+    if not user:
+        flash("يرجى تسجيل الدخول أولاً", "warning")
+        return redirect(url_for("auth_bp.login"))
+
+    school_id = user.get("school_id")
 
     if request.method == "POST":
         name = request.form.get("name")
@@ -155,7 +173,7 @@ def delete_teacher(user_id):
 # ============================
 @user_bp.route("/edit/<int:user_id>", methods=["GET", "POST"])
 def edit_teacher(user_id):
-    user = get_user_by_id(user_id)
+    user_data = get_user_by_id(user_id)
 
     if request.method == "POST":
         name = request.form.get("name")
@@ -167,4 +185,4 @@ def edit_teacher(user_id):
         flash("✏️ تم تعديل بيانات المعلم بنجاح")
         return redirect(url_for("user_bp.add_teacher_page"))
 
-    return render_template("edit_teacher.html", user=user)
+    return render_template("edit_teacher.html", user=user_data)
