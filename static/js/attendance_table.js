@@ -4,7 +4,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const classSelect = document.getElementById("classSelect");
     const sectionSelect = document.getElementById("sectionSelect");
-    const checkboxes = table.querySelectorAll(".attendance-checkbox");
 
     // وظيفة الفلترة وترقيم الصفوف
     function filterTable() {
@@ -14,8 +13,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         table.querySelectorAll("tbody tr").forEach(row => {
             let show = true;
+
+            // فلترة حسب class_id و section_id
             if (selectedClass && row.dataset.class !== selectedClass) show = false;
             if (selectedSection && row.dataset.section !== selectedSection) show = false;
+
             row.style.display = show ? "" : "none";
 
             // تحديث الترقيم فقط للصفوف المرئية
@@ -30,21 +32,29 @@ document.addEventListener("DOMContentLoaded", () => {
     if (sectionSelect) sectionSelect.addEventListener("change", filterTable);
 
     // تحديث الحضور عند التغيير
-    checkboxes.forEach(cb => {
-        cb.addEventListener("change", () => {
-            const studentId = cb.dataset.studentId;
-            const status = cb.dataset.status;
+    table.addEventListener("change", (e) => {
+        const cb = e.target;
+        if (!cb.classList.contains("attendance-checkbox")) return;
 
-            fetch("/update_attendance", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ student_id: studentId, status: status })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (!data.success) alert("حدث خطأ أثناء تحديث الحضور");
-            });
+        const studentId = cb.dataset.studentId;
+        const status = cb.dataset.status;
+
+        // التأكد أن حالة الحضور متناقضة مع البقية
+        const row = cb.closest("tr");
+        row.querySelectorAll(".attendance-checkbox").forEach(otherCb => {
+            if (otherCb !== cb) otherCb.checked = false;
         });
+
+        fetch("/update_attendance", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ student_id: studentId, status: status })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) alert("حدث خطأ أثناء تحديث الحضور");
+        })
+        .catch(() => alert("تعذر الاتصال بالخادم"));
     });
 
     // ترقيم الصفوف عند التحميل الأول

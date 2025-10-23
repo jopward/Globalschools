@@ -161,3 +161,29 @@ def filter_students_by_school(school_id):
     finally:
         cur.close()
         conn.close()
+
+
+# ============================
+# دوال الصفوف والشعب
+# ============================
+
+def get_all_classes(school_id=None):
+    """استرجاع جميع الصفوف والشعب، مع فلترة حسب المدرسة إذا أعطيت school_id"""
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    try:
+        if school_id:
+            cur.execute("""
+                SELECT * FROM teacher_classes
+                WHERE school_id = %s
+                ORDER BY class_name, section
+            """, (school_id,))
+        else:
+            cur.execute("""
+                SELECT * FROM teacher_classes
+                ORDER BY class_name, section
+            """)
+        return cur.fetchall()
+    finally:
+        cur.close()
+        conn.close()

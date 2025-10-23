@@ -18,6 +18,11 @@ from models.classes import filter_classes_by_school, get_all_classes, get_class_
 from models.user import get_user_by_username
 from models.school import get_all_schools
 from models.student import create_student, filter_students_by_school
+from models.attendance import (
+    add_attendance, get_attendance_by_id,
+    get_attendance_for_student, get_attendance_for_class,
+    update_attendance, delete_attendance
+)
 
 app = Flask(__name__, template_folder="templates")
 app.secret_key = "YOUR_SECRET_KEY"
@@ -41,7 +46,6 @@ app.register_blueprint(smart_bp, url_prefix='/smart')
 @app.before_request
 def inject_user():
     if 'user_id' not in session:
-        # مؤقتًا لإضافة مستخدم تجريبي
         session['user_id'] = 1
         session['user_name'] = 'admin'
         session['user_role'] = 'admin'
@@ -125,7 +129,7 @@ def add_subject_page():
     return render_template("add_subject.html", user=user, schools=schools)
 
 # ===========================================================
-# --- صفحة إضافة طلاب للـ Admin مع ظهور الشعبة في الجدول ---
+# --- صفحة إضافة طلاب للـ Admin ---
 # ===========================================================
 @app.route("/add_student_page", methods=['GET', 'POST'])
 def add_student_page():
@@ -143,14 +147,12 @@ def add_student_page():
     classes = []
     sections = []
 
-    # تجهيز قوائم الصفوف والشعب للـ HTML
     for cls in all_classes:
         if cls['school_id'] == school_id:
             if not any(c['id'] == cls['id'] for c in classes):
                 classes.append({'id': cls['id'], 'name': cls['class_name']})
             sections.append({'class_id': cls['id'], 'name': cls['section']})
 
-    # جلب الطلاب وربط كل طالب بالصف والشعبة من جدول الصفوف
     students = filter_students_by_school(school_id)
     for student in students:
         cls = get_class_by_id(student['class_id'])
@@ -185,6 +187,25 @@ def add_student_page():
         sections=sections,
         students=students
     )
+
+# ===========================================================
+# --- صفحة Attendance للـ Admin ---
+# ===========================================================
+@app.route("/attendance_page")
+def attendance_page():
+    if 'user_id' not in session or session.get('user_role') != 'admin':
+        return redirect(url_for('auth_bp.login'))
+
+    user = {
+        'id': session.get('user_id'),
+        'role': session.get('user_role'),
+        'name': session.get('user_name')
+    }
+
+    school_id = session.get('school_id', 1)
+    classes = filter_classes_by_school(school_id)
+
+    return render_template("attendance.html", user=user, classes=classes)
 
 # ===========================================================
 # --- صفحة Smart ---

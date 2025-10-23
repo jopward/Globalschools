@@ -27,7 +27,7 @@ def login_required(role=None):
                 return redirect(url_for('auth_bp.login'))
             if role and user.get('role') != role:
                 flash("لا تمتلك صلاحية الوصول لهذه الصفحة", "danger")
-                return redirect(url_for('auth.login'))
+                return redirect(url_for('auth_bp.login'))
             return f(*args, **kwargs)
         return wrapper
     return decorator
@@ -42,7 +42,6 @@ def manage_students():
     school_id = user.get('school_id')
 
     if request.method == 'POST':
-        # استقبال أسماء الطلاب من textarea (سطر لكل اسم)
         student_names_text = request.form.get('student_names')
         class_id = request.form.get('class_id')
 
@@ -73,7 +72,7 @@ def edit_student_route(student_id):
     school_id = user.get('school_id')
 
     student = get_student_by_id(student_id)
-    if not student or student[2] != school_id:  # student[2] = school_id من الجدول
+    if not student or student['school_id'] != school_id:
         flash("الطالب غير موجود أو ليس من مدرستك", "danger")
         return redirect(url_for('student_bp.manage_students'))
 
@@ -98,7 +97,7 @@ def delete_student_route(student_id):
     school_id = user.get('school_id')
 
     student = get_student_by_id(student_id)
-    if not student or student[2] != school_id:
+    if not student or student['school_id'] != school_id:
         flash("الطالب غير موجود أو ليس من مدرستك", "danger")
     else:
         delete_student(student_id)
@@ -119,10 +118,8 @@ def search_student():
     if not keyword:
         return jsonify({"error": "يرجى إدخال كلمة البحث"}), 400
 
-    students = search_students_by_name(keyword)
-    students = [s for s in students if s[2] == school_id]
-
-    return jsonify(students)
+    students = search_students_by_name(keyword, school_id=school_id)
+    return jsonify([dict(s) for s in students])
 
 @student_bp.route('/students/filter/class', methods=['GET'])
 @login_required()
@@ -135,9 +132,9 @@ def filter_student_class():
         return jsonify({"error": "يرجى إدخال معرف الصف"}), 400
 
     students = filter_students_by_class(class_id)
-    students = [s for s in students if s[2] == school_id]
-
-    return jsonify(students)
+    # تصفية حسب مدرسة المستخدم
+    students = [s for s in students if s['school_id'] == school_id]
+    return jsonify([dict(s) for s in students])
 
 @student_bp.route('/students/filter/school', methods=['GET'])
 @login_required()
@@ -146,4 +143,4 @@ def filter_student_school():
     school_id = user.get('school_id')
 
     students = filter_students_by_school(school_id)
-    return jsonify(students)
+    return jsonify([dict(s) for s in students])

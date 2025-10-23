@@ -1,10 +1,7 @@
 from flask import Blueprint, request, jsonify, session, redirect, url_for, flash
-from models.attendance import (
-    add_attendance, get_attendance_by_id,
-    get_attendance_for_student, get_attendance_for_class,
-    update_attendance, delete_attendance
-)
 from functools import wraps
+from db.db_setup import get_connection
+import datetime
 
 attendance_bp = Blueprint("attendance_bp", __name__)
 
@@ -27,68 +24,126 @@ def login_required(role=None):
     return decorator
 
 # ============================
-# إضافة سجل حضور
+# إضافة أو تحديث سجل حضور للطالب
 # ============================
-@attendance_bp.route("/attendance", methods=["POST"])
+@attendance_bp.route("/update_attendance", methods=["POST"])
 @login_required(role="admin")
-def route_add_attendance():
+def update_attendance_route():
     data = request.json or {}
     student_id = data.get("student_id")
-    class_id = data.get("class_id")
-    date = data.get("date")
-    status = data.get("status")
-    note = data.get("note")
+    status = data.get("status")  # present / late / absent
+    date = data.get("date") or datetime.date.today().isoformat()
 
-    if not student_id or not class_id or not date or not status:
-        return jsonify({"error": "student_id, class_id, date, status مطلوبين"}), 400
+    if not student_id or not status:
+        return jsonify({"success": False, "error": "student_id و status مطلوبين"}), 400
 
-    att_id = add_attendance(student_id, class_id, date, status, note)
-    return jsonify({"message": "تم إضافة سجل الحضور", "attendance_id": att_id}), 201
+    conn = get_connection()
+    cur = conn.cursor()
 
-# ============================
-# جلب سجل واحد
-# ============================
-@attendance_bp.route("/attendance/<int:att_id>", methods=["GET"])
-@login_required()
-def route_get_attendance(att_id):
-    row = get_attendance_by_id(att_id)
-    if not row:
-        return jsonify({"error": "السجل غير موجود"}), 404
-    return jsonify(row)
+    # حذف أي سجل موجود لهذا الطالب في نفس التاريخ
+    cur.execute("""
+        DELETE FROM student_tracking 
+        WHERE student_id = %s AND tracking_date = %s
+    """, (student_id, date))
+
+    # إدراج سجل جديد مع الحالة
+    cur.execute("""
+        INSERT INTO student_tracking (student_id, tracking_date, note)
+        VALUES (%s, %s, %s)
+        RETURNING id
+    """, (student_id, date, status))  # تخزين الحالة في note لحفظها كما في JS
+    att_id = cur.fetchone()[0]
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return jsonify({"success": True, "attendance_id": att_id})
 
 # ============================
 # جلب حضور طالب
 # ============================
 @attendance_bp.route("/students/<int:student_id>/attendance", methods=["GET"])
 @login_required()
-def route_get_student_attendance(student_id):
-    rows = get_attendance_for_student(student_id)
-    return jsonify(rows)
+def get_student_attendance(student_id):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT st.id, st.tracking_date, st.note, s.student_name, tc.id as class_id, tc.class_name, tc.id as section_id, tc.section
+        FROM student_tracking st
+        JOIN students s ON st.student_id = s.id
+        LEFT JOIN teacher_classes tc ON s.class_id = tc.id
+        WHERE st.student_id = %s
+        ORDER BY st.tracking_date DESC
+    """, (student_id,))
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    result = []
+    for r in rows:
+        att_id, tracking_date, note, student_name, class_id, class_name, section_id, section = r
+        result.append({
+            "id": att_id,
+            "student_id": student_id,
+            "student_name": student_name,
+            "class_id": class_id,
+            "class_name": class_name,
+            "section_id": section_id,
+            "section": section,
+            "date": tracking_date.isoformat(),
+            "attendance_status": note  # لتوافق مع HTML/JS
+        })
+
+    return jsonify(result)
 
 # ============================
 # جلب حضور صف في يوم معين
 # ============================
 @attendance_bp.route("/classes/<int:class_id>/attendance/<date>", methods=["GET"])
 @login_required()
-def route_get_class_attendance(class_id, date):
-    rows = get_attendance_for_class(class_id, date)
-    return jsonify(rows)
+def get_class_attendance(class_id, date):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT st.id, st.tracking_date, st.note, s.id as student_id, s.student_name, tc.id as class_id, tc.class_name, tc.id as section_id, tc.section
+        FROM student_tracking st
+        JOIN students s ON st.student_id = s.id
+        JOIN teacher_classes tc ON s.class_id = tc.id
+        WHERE tc.id = %s AND st.tracking_date = %s
+        ORDER BY s.student_name
+    """, (class_id, date))
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
 
-# ============================
-# تحديث حضور
-# ============================
-@attendance_bp.route("/attendance/<int:att_id>", methods=["PUT"])
-@login_required(role="admin")
-def route_update_attendance(att_id):
-    data = request.json or {}
-    update_attendance(att_id, status=data.get("status"), note=data.get("note"))
-    return jsonify({"message": "تم تحديث السجل"})
+    result = []
+    for r in rows:
+        att_id, tracking_date, note, student_id, student_name, class_id, class_name, section_id, section = r
+        result.append({
+            "id": att_id,
+            "student_id": student_id,
+            "student_name": student_name,
+            "class_id": class_id,
+            "class_name": class_name,
+            "section_id": section_id,
+            "section": section,
+            "date": tracking_date.isoformat(),
+            "attendance_status": note
+        })
+
+    return jsonify(result)
 
 # ============================
 # حذف حضور
 # ============================
 @attendance_bp.route("/attendance/<int:att_id>", methods=["DELETE"])
 @login_required(role="admin")
-def route_delete_attendance(att_id):
-    delete_attendance(att_id)
+def delete_attendance_route(att_id):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM student_tracking WHERE id = %s", (att_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
     return jsonify({"message": "تم حذف السجل"})
