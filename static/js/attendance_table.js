@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
         table.querySelectorAll("tbody tr").forEach(row => {
             let show = true;
 
-            // فلترة حسب class_id و section_id
+            // فلترة حسب الصف والشعبة
             if (selectedClass && row.dataset.class !== selectedClass) show = false;
             if (selectedSection && row.dataset.section !== selectedSection) show = false;
 
@@ -28,10 +28,11 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // تفعيل الفلترة عند تغيير الصف أو الشعبة
     if (classSelect) classSelect.addEventListener("change", filterTable);
     if (sectionSelect) sectionSelect.addEventListener("change", filterTable);
 
-    // تحديث الحضور عند التغيير
+    // تحديث الحضور/الملاحظة عند تغيير أي checkbox
     table.addEventListener("change", (e) => {
         const cb = e.target;
         if (!cb.classList.contains("attendance-checkbox")) return;
@@ -39,20 +40,21 @@ document.addEventListener("DOMContentLoaded", () => {
         const studentId = cb.dataset.studentId;
         const status = cb.dataset.status;
 
-        // التأكد أن حالة الحضور متناقضة مع البقية
+        // التأكد أن حالة الحضور متناقضة مع البقية في نفس الصف
         const row = cb.closest("tr");
         row.querySelectorAll(".attendance-checkbox").forEach(otherCb => {
             if (otherCb !== cb) otherCb.checked = false;
         });
 
-        fetch("/update_attendance", {
+        // إرسال البيانات إلى السيرفر
+        fetch("/tracking/update", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ student_id: studentId, status: status })
+            body: JSON.stringify({ student_id: studentId, note: status })
         })
         .then(res => res.json())
         .then(data => {
-            if (!data.success) alert("حدث خطأ أثناء تحديث الحضور");
+            if (!data.success) alert("حدث خطأ أثناء حفظ الملاحظة");
         })
         .catch(() => alert("تعذر الاتصال بالخادم"));
     });

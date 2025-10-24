@@ -40,23 +40,23 @@
             <tbody>
                 {% for student in students|sort(attribute='student_name') %}
                 <tr data-class="{{ student.class_id }}" data-section="{{ student.section_id }}">
-                    <td class="row-number"></td>
+                    <td class="row-number">{{ loop.index }}</td>
                     <td>{{ student.student_name }}</td>
                     <td>
                         <input type="checkbox" class="attendance-checkbox" 
-                               data-student-id="{{ student.id }}" 
+                               data-student-id="{{ student.student_id }}" 
                                data-status="present"
                                {% if student.attendance_status == 'present' %}checked{% endif %}>
                     </td>
                     <td>
                         <input type="checkbox" class="attendance-checkbox" 
-                               data-student-id="{{ student.id }}" 
+                               data-student-id="{{ student.student_id }}" 
                                data-status="late"
                                {% if student.attendance_status == 'late' %}checked{% endif %}>
                     </td>
                     <td>
                         <input type="checkbox" class="attendance-checkbox" 
-                               data-student-id="{{ student.id }}" 
+                               data-student-id="{{ student.student_id }}" 
                                data-status="absent"
                                {% if student.attendance_status == 'absent' %}checked{% endif %}>
                     </td>
