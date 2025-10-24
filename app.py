@@ -19,9 +19,11 @@ from models.user import get_user_by_username
 from models.school import get_all_schools
 from models.student import create_student, filter_students_by_school
 from models.attendance import (
-    add_attendance, get_attendance_by_id,
-    get_attendance_for_student, get_attendance_for_class,
-    update_attendance, delete_attendance
+    add_attendance,
+    get_attendance_by_id,
+    get_attendance_for_student,  # موجود
+    update_attendance,
+    delete_attendance
 )
 
 app = Flask(__name__, template_folder="templates")
