@@ -1,4 +1,6 @@
 from flask import Flask, jsonify, render_template, session, redirect, url_for, request, flash
+from datetime import date
+from db.db_setup import get_connection
 
 # --- Blueprints ---
 from routes.user import user_bp
@@ -191,7 +193,7 @@ def add_student_page():
     )
 
 # ===========================================================
-# --- صفحة Attendance للـ Admin ---
+# --- صفحة Attendance للـ Admin (معدلة بالكامل) ---
 # ===========================================================
 @app.route("/attendance_page")
 def attendance_page():
@@ -207,7 +209,68 @@ def attendance_page():
     school_id = session.get('school_id', 1)
     classes = filter_classes_by_school(school_id)
 
-    return render_template("attendance.html", user=user, classes=classes)
+    # استخراج الشعب من الصفوف
+    sections = []
+    seen_sections = set()
+    for cls in classes:
+        sec = cls.get('section')
+        if sec and sec not in seen_sections:
+            sections.append({'id': cls['id'], 'section': sec})
+            seen_sections.add(sec)
+
+    # جلب الطلاب
+    students_raw = filter_students_by_school(school_id)
+    conn = get_connection()
+    cur = conn.cursor()
+    today = date.today().isoformat()
+
+    students = []
+    for s in students_raw:
+        sid = s['id']
+        sname = s['student_name']
+        class_id = s['class_id']
+
+        cur.execute("""
+            SELECT attendance, note, teacher_id, id
+            FROM student_tracking
+            WHERE student_id = %s AND date = %s AND school_id = %s
+            LIMIT 1
+        """, (sid, today, school_id))
+        tr = cur.fetchone()
+
+        attendance_status = None
+        note = None
+        teacher_id = None
+        tracking_id = None
+        if tr:
+            attendance_status = tr[0]
+            note = tr[1]
+            teacher_id = tr[2]
+            tracking_id = tr[3]
+
+        cls = get_class_by_id(class_id)
+        section_id = cls['id'] if cls else None
+
+        students.append({
+            "student_id": sid,
+            "student_name": sname,
+            "class_id": class_id,
+            "section_id": section_id,
+            "attendance_status": attendance_status,
+            "note": note,
+            "teacher_id": teacher_id,
+            "tracking_id": tracking_id
+        })
+
+    cur.close()
+    conn.close()
+
+    return render_template("attendance.html",
+                           user=user,
+                           classes=classes,
+                           sections=sections,
+                           students=students,
+                           today=today)
 
 # ===========================================================
 # --- صفحة Smart ---

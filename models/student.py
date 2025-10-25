@@ -187,3 +187,18 @@ def get_all_classes(school_id=None):
     finally:
         cur.close()
         conn.close()
+
+
+def get_class_by_id(class_id):
+    """استرجاع بيانات صف وشعبة حسب المعرف ID"""
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    try:
+        cur.execute("""
+            SELECT * FROM teacher_classes
+            WHERE id = %s
+        """, (class_id,))
+        return cur.fetchone()
+    finally:
+        cur.close()
+        conn.close()

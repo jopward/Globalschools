@@ -1,26 +1,22 @@
 document.addEventListener("DOMContentLoaded", () => {
     const table = document.getElementById("attendanceTable");
-    if (!table) return; // إذا ما فيه جدول، لا نفعل أي شيء
+    if (!table) return;
 
     const classSelect = document.getElementById("classSelect");
     const sectionSelect = document.getElementById("sectionSelect");
 
-    // وظيفة الفلترة وترقيم الصفوف
     function filterTable() {
         const selectedClass = classSelect ? classSelect.value : '';
         const selectedSection = sectionSelect ? sectionSelect.value : '';
-        let visibleIndex = 1; // لترقيم الصفوف المرئية فقط
+        let visibleIndex = 1;
 
         table.querySelectorAll("tbody tr").forEach(row => {
             let show = true;
-
-            // فلترة حسب الصف والشعبة
             if (selectedClass && row.dataset.class !== selectedClass) show = false;
             if (selectedSection && row.dataset.section !== selectedSection) show = false;
 
             row.style.display = show ? "" : "none";
 
-            // تحديث الترقيم فقط للصفوف المرئية
             if (show) {
                 const numberCell = row.querySelector(".row-number");
                 if (numberCell) numberCell.textContent = visibleIndex++;
@@ -28,29 +24,38 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // تفعيل الفلترة عند تغيير الصف أو الشعبة
     if (classSelect) classSelect.addEventListener("change", filterTable);
     if (sectionSelect) sectionSelect.addEventListener("change", filterTable);
 
-    // تحديث الحضور/الملاحظة عند تغيير أي checkbox
     table.addEventListener("change", (e) => {
         const cb = e.target;
         if (!cb.classList.contains("attendance-checkbox")) return;
 
+        const row = cb.closest("tr");
         const studentId = cb.dataset.studentId;
         const status = cb.dataset.status;
+        const schoolId = row.dataset.school;
+        const teacherId = row.dataset.teacher;
+        const dateVal = row.dataset.date;
+        const note = status;
 
-        // التأكد أن حالة الحضور متناقضة مع البقية في نفس الصف
-        const row = cb.closest("tr");
+        // التأكد من التحقق المتبادل بين checkboxes في نفس الصف
         row.querySelectorAll(".attendance-checkbox").forEach(otherCb => {
             if (otherCb !== cb) otherCb.checked = false;
         });
 
-        // إرسال البيانات إلى السيرفر
-        fetch("/tracking/update", {
+        // إرسال البيانات إلى الراوت الصحيح للـ blueprint
+        fetch("/attendance/update_attendance", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ student_id: studentId, note: status })
+            body: JSON.stringify({
+                student_id: studentId,
+                status: status,
+                school_id: schoolId,
+                teacher_id: teacherId,
+                date: dateVal,
+                note: note
+            })
         })
         .then(res => res.json())
         .then(data => {
@@ -59,6 +64,6 @@ document.addEventListener("DOMContentLoaded", () => {
         .catch(() => alert("تعذر الاتصال بالخادم"));
     });
 
-    // ترقيم الصفوف عند التحميل الأول
+    // ترقيم الصفوف عند التحميل
     filterTable();
 });
