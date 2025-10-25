@@ -39,7 +39,13 @@
             </thead>
             <tbody>
                 {% for student in students|sort(attribute='student_name') %}
-                <tr data-class="{{ student.class_id }}" data-section="{{ student.section_id }}">
+                <tr 
+                    data-class="{{ student.class_id }}" 
+                    data-section="{{ student.section_id }}"
+                    data-school="{{ session['user'].school_id if session['user'] else '' }}"
+                    data-teacher="{{ session['user'].id if session['user'] else '' }}"
+                    data-date="{{ today }}"
+                >
                     <td class="row-number">{{ loop.index }}</td>
                     <td>{{ student.student_name }}</td>
                     <td>

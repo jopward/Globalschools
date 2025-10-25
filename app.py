@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, render_template, session, redirect, url_for, request, flash
 from datetime import date
 from db.db_setup import get_connection
+import psycopg2.extras
 
 # --- Blueprints ---
 from routes.user import user_bp
@@ -23,7 +24,7 @@ from models.student import create_student, filter_students_by_school
 from models.attendance import (
     add_attendance,
     get_attendance_by_id,
-    get_attendance_for_student,  # موجود
+    get_attendance_for_student,
     update_attendance,
     delete_attendance
 )
@@ -193,7 +194,7 @@ def add_student_page():
     )
 
 # ===========================================================
-# --- صفحة Attendance للـ Admin (معدلة بالكامل) ---
+# --- صفحة Attendance للـ Admin ---
 # ===========================================================
 @app.route("/attendance_page")
 def attendance_page():
@@ -221,7 +222,7 @@ def attendance_page():
     # جلب الطلاب
     students_raw = filter_students_by_school(school_id)
     conn = get_connection()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     today = date.today().isoformat()
 
     students = []
@@ -238,15 +239,10 @@ def attendance_page():
         """, (sid, today, school_id))
         tr = cur.fetchone()
 
-        attendance_status = None
-        note = None
-        teacher_id = None
-        tracking_id = None
-        if tr:
-            attendance_status = tr[0]
-            note = tr[1]
-            teacher_id = tr[2]
-            tracking_id = tr[3]
+        attendance_status = tr['attendance'] if tr else None
+        note = tr['note'] if tr else None
+        teacher_id = tr['teacher_id'] if tr else None
+        tracking_id = tr['id'] if tr else None
 
         cls = get_class_by_id(class_id)
         section_id = cls['id'] if cls else None
@@ -265,12 +261,14 @@ def attendance_page():
     cur.close()
     conn.close()
 
-    return render_template("attendance.html",
-                           user=user,
-                           classes=classes,
-                           sections=sections,
-                           students=students,
-                           today=today)
+    return render_template(
+        "attendance.html",
+        user=user,
+        classes=classes,
+        sections=sections,
+        students=students,
+        today=today
+    )
 
 # ===========================================================
 # --- صفحة Smart ---
@@ -314,6 +312,14 @@ def test_all_routes():
     except: result['smart'] = "❌ FAIL"
 
     return jsonify(result)
+
+# ===========================================================
+# --- تحويل تلقائي لأي طلب قديم إلى المسار الصحيح ---
+# ===========================================================
+@app.route('/update_attendance', methods=['POST'])
+def redirect_old_update_attendance():
+    """إذا أرسل JS طلبًا للمسار القديم، نحوله للصحيح"""
+    return redirect(url_for('attendance.update_attendance'), code=307)
 
 # ===========================================================
 # --- نقطة التشغيل ---

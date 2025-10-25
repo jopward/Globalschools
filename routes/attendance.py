@@ -4,7 +4,7 @@ from models.attendance import add_attendance, update_attendance, delete_attendan
 from db.db_setup import get_connection
 import datetime
 
-attendance_bp = Blueprint("attendance_bp", __name__)
+attendance_bp = Blueprint("attendance_bp", __name__, url_prefix="/attendance")
 
 # ============================
 # ديكوريتور للتحقق من تسجيل الدخول والصلاحية
@@ -44,76 +44,28 @@ def update_attendance_route():
     # حذف أي سجل موجود لنفس الطالب في نفس التاريخ
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("DELETE FROM student_tracking WHERE student_id = %s AND date = %s", (student_id, date_str))
+    cur.execute(
+        "DELETE FROM student_tracking WHERE student_id = %s AND date = %s AND school_id = %s",
+        (student_id, date_str, school_id)
+    )
     conn.commit()
     cur.close()
     conn.close()
 
     # إضافة السجل الجديد باستخدام الموديل
     att_id = add_attendance(student_id, school_id, teacher_id, date_str, attendance_status, note)
-    return jsonify({"success": True, "attendance_id": att_id})
-
-# ============================
-# جلب حضور طالب
-# ============================
-@attendance_bp.route("/students/<int:student_id>/attendance", methods=["GET"])
-@login_required()
-def get_student_attendance(student_id):
-    rows = filter_attendance(student_id=student_id)
-    result = []
-    for r in rows:
-        att_id, student_id, school_id, teacher_id, date_val, attendance_status, note, student_name, teacher_name = r
-        result.append({
-            "id": att_id,
-            "student_id": student_id,
-            "student_name": student_name,
-            "school_id": school_id,
-            "teacher_id": teacher_id,
-            "teacher_name": teacher_name,
-            "date": date_val.isoformat(),
-            "attendance_status": attendance_status,
-            "note": note
-        })
-    return jsonify(result)
-
-# ============================
-# جلب حضور صف في يوم معين
-# ============================
-@attendance_bp.route("/classes/<int:class_id>/attendance/<date_str>", methods=["GET"])
-@login_required()
-def get_class_attendance(class_id, date_str):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT s.id FROM students s JOIN teacher_classes tc ON s.class_id = tc.id WHERE tc.id = %s", (class_id,))
-    student_rows = cur.fetchall()
-    cur.close()
-    conn.close()
-
-    result = []
-    for student in student_rows:
-        student_id = student[0]
-        rows = filter_attendance(student_id=student_id, start_date=date_str, end_date=date_str)
-        for r in rows:
-            att_id, _, school_id, teacher_id, date_val, attendance_status, note, student_name, teacher_name = r
-            result.append({
-                "id": att_id,
-                "student_id": student_id,
-                "student_name": student_name,
-                "school_id": school_id,
-                "teacher_id": teacher_id,
-                "teacher_name": teacher_name,
-                "class_id": class_id,
-                "date": date_val.isoformat(),
-                "attendance_status": attendance_status,
-                "note": note
-            })
-    return jsonify(result)
+    return jsonify({"success": True, "tracking_id": att_id})
 
 # ============================
 # حذف حضور
 # ============================
-@attendance_bp.route("/attendance/<int:att_id>", methods=["DELETE"])
+@attendance_bp.route("/delete_attendance", methods=["POST"])
 @login_required(role="admin")
-def delete_attendance_route(att_id):
-    delete_attendance(att_id)
-    return jsonify({"message": "تم حذف السجل"})
+def delete_attendance_route():
+    data = request.json or {}
+    tracking_id = data.get("tracking_id")
+    if not tracking_id:
+        return jsonify({"success": False, "error": "tracking_id مطلوب"}), 400
+
+    delete_attendance(tracking_id)
+    return jsonify({"success": True})

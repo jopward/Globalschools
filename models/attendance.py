@@ -1,4 +1,3 @@
-# models/attendance.py
 from db.db_setup import get_connection
 
 # ============================
@@ -9,16 +8,29 @@ def add_attendance(student_id, school_id, teacher_id, date, attendance, note=Non
     """إضافة سجل حضور / غياب"""
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO student_tracking (student_id, school_id, teacher_id, date, attendance, note)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        RETURNING id
-    """, (student_id, school_id, teacher_id, date, attendance, note))
-    att_id = cur.fetchone()[0]
-    conn.commit()
-    cur.close()
-    conn.close()
-    return att_id
+    try:
+        cur.execute("""
+            INSERT INTO student_tracking (student_id, school_id, teacher_id, date, attendance, note)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """, (student_id, school_id, teacher_id, date, attendance, note))
+        
+        result = cur.fetchone()
+        conn.commit()
+
+        if result and len(result) > 0:
+            return result[0]
+        else:
+            print("⚠️ لم يتم إرجاع أي ID من قاعدة البيانات بعد الإدخال.")
+            return None
+    except Exception as e:
+        conn.rollback()
+        print("❌ خطأ أثناء الإضافة:", e)
+        return None
+    finally:
+        cur.close()
+        conn.close()
+
 
 def get_attendance_by_id(att_id):
     """جلب سجل حضور واحد"""
@@ -29,6 +41,7 @@ def get_attendance_by_id(att_id):
     cur.close()
     conn.close()
     return row
+
 
 def get_attendance_for_student(student_id, limit=50, offset=0):
     """جلب حضور طالب معين"""
@@ -44,6 +57,7 @@ def get_attendance_for_student(student_id, limit=50, offset=0):
     cur.close()
     conn.close()
     return rows
+
 
 def get_attendance_for_school(school_id, date=None):
     """جلب حضور مدرسة معينة (اختياري حسب التاريخ)"""
@@ -70,6 +84,7 @@ def get_attendance_for_school(school_id, date=None):
     conn.close()
     return rows
 
+
 def get_attendance_for_teacher(teacher_id, date=None):
     """جلب حضور مدرس معين (اختياري حسب التاريخ)"""
     conn = get_connection()
@@ -95,6 +110,7 @@ def get_attendance_for_teacher(teacher_id, date=None):
     conn.close()
     return rows
 
+
 def get_attendance_for_student_period(student_id, start_date, end_date):
     """جلب حضور طالب معين خلال فترة زمنية محددة"""
     conn = get_connection()
@@ -111,6 +127,7 @@ def get_attendance_for_student_period(student_id, start_date, end_date):
     cur.close()
     conn.close()
     return rows
+
 
 def update_attendance(att_id, attendance=None, note=None):
     """تحديث حالة حضور"""
@@ -135,6 +152,7 @@ def update_attendance(att_id, attendance=None, note=None):
     conn.close()
     return True
 
+
 def delete_attendance(att_id):
     """حذف سجل حضور"""
     conn = get_connection()
@@ -144,6 +162,7 @@ def delete_attendance(att_id):
     cur.close()
     conn.close()
     return True
+
 
 def filter_attendance(student_id=None, school_id=None, teacher_id=None, start_date=None, end_date=None):
     """
