@@ -3,8 +3,10 @@
 {% block content %}
 <div class="container mt-4 header-row">
     <div class="d-flex justify-content-between mb-3 align-items-center">
-        <div id="today">
-            {{ today }}
+        <div class="d-flex align-items-center">
+            <label for="attendanceDate" class="me-2">📅 التاريخ:</label>
+            <input type="date" id="attendanceDate" class="form-control" 
+                   value="{{ today }}" style="width: 180px;">
         </div>
 
         <div>
@@ -37,13 +39,13 @@
                     <th>غائب</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="attendanceBody">
                 {% for student in students|sort(attribute='student_name') %}
                 <tr 
                     data-class="{{ student.class_id }}" 
                     data-section="{{ student.section_id }}"
-                    data-school="{{ session['user'].school_id if session['user'] else '' }}"
-                    data-teacher="{{ session['user'].id if session['user'] else '' }}"
+                    data-school="{{ session.get('school_id', '') }}"
+                    data-teacher="{{ session.get('user_id', '') }}"
                     data-date="{{ today }}"
                 >
                     <td class="row-number">{{ loop.index }}</td>

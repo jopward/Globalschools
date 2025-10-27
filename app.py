@@ -1,3 +1,4 @@
+# app.py
 from flask import Flask, jsonify, render_template, session, redirect, url_for, request, flash
 from datetime import date
 from db.db_setup import get_connection
@@ -10,7 +11,7 @@ from routes.teachers import teacher_bp
 from routes.school import school_bp
 from routes.subjects import subjects_bp
 from routes.classes import classes_bp
-from routes.attendance import attendance_bp
+from routes.attendance import attendance_bp  # يحتوي url_prefix="/attendance" داخل الملف
 from routes.grades import grades_bp
 from routes.tracking import tracking_bp
 from routes.auth import auth_bp
@@ -40,21 +41,36 @@ app.register_blueprint(teacher_bp, url_prefix='/teachers')
 app.register_blueprint(school_bp)
 app.register_blueprint(subjects_bp, url_prefix='/subjects')
 app.register_blueprint(classes_bp, url_prefix='/classes')
-app.register_blueprint(attendance_bp, url_prefix='/attendance')
+# مهم: لا تضف url_prefix هنا لأن البلوبيرنت نفسه يملك url_prefix="/attendance"
+app.register_blueprint(attendance_bp)
 app.register_blueprint(grades_bp, url_prefix='/grades')
 app.register_blueprint(tracking_bp, url_prefix='/tracking')
 app.register_blueprint(smart_bp, url_prefix='/smart')
 
 # ===========================================================
-# --- مؤقت لتجربة تسجيل الدخول ---
+# --- مؤقت لتجربة تسجيل الدخول + توحيد شكل الجلسة ---
 # ===========================================================
 @app.before_request
 def inject_user():
-    if 'user_id' not in session:
-        session['user_id'] = 1
-        session['user_name'] = 'admin'
-        session['user_role'] = 'admin'
-        session['school_id'] = 1
+    # اجعل الجلسة متناسقة: نوحّد session['user'] والمفاتيح المسطحة للتوافق
+    if 'user' not in session and 'user_id' not in session:
+        session['user'] = {
+            'id': 1,
+            'name': 'admin',
+            'role': 'admin',
+            'school_id': 1,
+            'username': 'admin',
+            'teacher_code': None,
+            'is_authenticated': True
+        }
+    # حقول مسطّحة للتوافق مع شيفرات قديمة
+    user = session.get('user', {})
+    session.setdefault('user_id', user.get('id', 1))
+    session.setdefault('user_name', user.get('name', 'admin'))
+    session.setdefault('user_role', user.get('role', 'admin'))
+    session.setdefault('school_id', user.get('school_id', 1))
+    if 'teacher_code' in user:
+        session.setdefault('teacher_code', user.get('teacher_code'))
 
 # ===========================================================
 # --- الصفحة الرئيسية / لوحة التحكم ---
@@ -194,81 +210,13 @@ def add_student_page():
     )
 
 # ===========================================================
-# --- صفحة Attendance للـ Admin ---
+# --- صفحة Attendance (حافظ على المسار القديم) ---
 # ===========================================================
 @app.route("/attendance_page")
 def attendance_page():
-    if 'user_id' not in session or session.get('user_role') != 'admin':
-        return redirect(url_for('auth_bp.login'))
-
-    user = {
-        'id': session.get('user_id'),
-        'role': session.get('user_role'),
-        'name': session.get('user_name')
-    }
-
-    school_id = session.get('school_id', 1)
-    classes = filter_classes_by_school(school_id)
-
-    # استخراج الشعب من الصفوف
-    sections = []
-    seen_sections = set()
-    for cls in classes:
-        sec = cls.get('section')
-        if sec and sec not in seen_sections:
-            sections.append({'id': cls['id'], 'section': sec})
-            seen_sections.add(sec)
-
-    # جلب الطلاب
-    students_raw = filter_students_by_school(school_id)
-    conn = get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    today = date.today().isoformat()
-
-    students = []
-    for s in students_raw:
-        sid = s['id']
-        sname = s['student_name']
-        class_id = s['class_id']
-
-        cur.execute("""
-            SELECT attendance, note, teacher_id, id
-            FROM student_tracking
-            WHERE student_id = %s AND date = %s AND school_id = %s
-            LIMIT 1
-        """, (sid, today, school_id))
-        tr = cur.fetchone()
-
-        attendance_status = tr['attendance'] if tr else None
-        note = tr['note'] if tr else None
-        teacher_id = tr['teacher_id'] if tr else None
-        tracking_id = tr['id'] if tr else None
-
-        cls = get_class_by_id(class_id)
-        section_id = cls['id'] if cls else None
-
-        students.append({
-            "student_id": sid,
-            "student_name": sname,
-            "class_id": class_id,
-            "section_id": section_id,
-            "attendance_status": attendance_status,
-            "note": note,
-            "teacher_id": teacher_id,
-            "tracking_id": tracking_id
-        })
-
-    cur.close()
-    conn.close()
-
-    return render_template(
-        "attendance.html",
-        user=user,
-        classes=classes,
-        sections=sections,
-        students=students,
-        today=today
-    )
+    # إعادة استخدام صفحة البلوبيرنت لتوحيد المصدر
+    # يسمح بإبقاء الرابط القديم شغال
+    return redirect(url_for('attendance.attendance_page'))
 
 # ===========================================================
 # --- صفحة Smart ---
@@ -314,11 +262,11 @@ def test_all_routes():
     return jsonify(result)
 
 # ===========================================================
-# --- تحويل تلقائي لأي طلب قديم إلى المسار الصحيح ---
+# --- تحويل أي طلب قديم لمسار التحديث الجديد ---
 # ===========================================================
 @app.route('/update_attendance', methods=['POST'])
 def redirect_old_update_attendance():
-    """إذا أرسل JS طلبًا للمسار القديم، نحوله للصحيح"""
+    # يحافظ على توافق /update_attendance القديم بتحويل 307 إلى البلوبيرنت
     return redirect(url_for('attendance.update_attendance'), code=307)
 
 # ===========================================================

@@ -1,31 +1,38 @@
 from db.db_setup import get_connection
+import psycopg2.extras
+from datetime import date
 
-# ============================
-# CRUD للحضور والغياب (student_tracking)
-# ============================
+# ============================================================
+# 🧩 Model: student_tracking — إدارة الحضور والغياب
+# ============================================================
 
-def add_attendance(student_id, school_id, teacher_id, date, attendance, note=None):
-    """إضافة سجل حضور / غياب"""
+def add_attendance(student_id, school_id, teacher_id, date_val=None, attendance=None, note=None):
+    """
+    ➕ إضافة سجل حضور جديد
+    """
+    if not student_id or not school_id or not teacher_id:
+        raise ValueError("student_id و school_id و teacher_id مطلوبة.")
+
     conn = get_connection()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    date_val = date_val or date.today().isoformat()
+
     try:
         cur.execute("""
             INSERT INTO student_tracking (student_id, school_id, teacher_id, date, attendance, note)
             VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING id
-        """, (student_id, school_id, teacher_id, date, attendance, note))
+        """, (student_id, school_id, teacher_id, date_val, attendance, note))
         
         result = cur.fetchone()
         conn.commit()
+        print(f"✅ تم الإدخال بنجاح، tracking_id = {result['id']}")
+        return result["id"]
 
-        if result and len(result) > 0:
-            return result[0]
-        else:
-            print("⚠️ لم يتم إرجاع أي ID من قاعدة البيانات بعد الإدخال.")
-            return None
     except Exception as e:
         conn.rollback()
-        print("❌ خطأ أثناء الإضافة:", e)
+        print("❌ خطأ أثناء الإضافة إلى student_tracking:", e)
         return None
     finally:
         cur.close()
@@ -33,9 +40,11 @@ def add_attendance(student_id, school_id, teacher_id, date, attendance, note=Non
 
 
 def get_attendance_by_id(att_id):
-    """جلب سجل حضور واحد"""
+    """
+    📄 جلب سجل حضور واحد
+    """
     conn = get_connection()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT * FROM student_tracking WHERE id=%s", (att_id,))
     row = cur.fetchone()
     cur.close()
@@ -43,86 +52,38 @@ def get_attendance_by_id(att_id):
     return row
 
 
-def get_attendance_for_student(student_id, limit=50, offset=0):
-    """جلب حضور طالب معين"""
+def get_attendance_for_student(student_id, limit=50):
+    """
+    📚 جلب آخر سجلات حضور طالب معين
+    """
     conn = get_connection()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("""
         SELECT * FROM student_tracking
         WHERE student_id=%s
         ORDER BY date DESC
-        LIMIT %s OFFSET %s
-    """, (student_id, limit, offset))
+        LIMIT %s
+    """, (student_id, limit))
     rows = cur.fetchall()
     cur.close()
     conn.close()
     return rows
 
 
-def get_attendance_for_school(school_id, date=None):
-    """جلب حضور مدرسة معينة (اختياري حسب التاريخ)"""
+def get_attendance_for_date(school_id, date_val):
+    """
+    📅 جلب كل الحضور في تاريخ معين لمدرسة محددة
+    """
     conn = get_connection()
-    cur = conn.cursor()
-    if date:
-        cur.execute("""
-            SELECT st.*, s.student_name, u.name AS teacher_name
-            FROM student_tracking st
-            LEFT JOIN students s ON st.student_id = s.id
-            LEFT JOIN users u ON st.teacher_id = u.id
-            WHERE st.school_id=%s AND st.date=%s
-        """, (school_id, date))
-    else:
-        cur.execute("""
-            SELECT st.*, s.student_name, u.name AS teacher_name
-            FROM student_tracking st
-            LEFT JOIN students s ON st.student_id = s.id
-            LEFT JOIN users u ON st.teacher_id = u.id
-            WHERE st.school_id=%s
-        """, (school_id,))
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
-    return rows
-
-
-def get_attendance_for_teacher(teacher_id, date=None):
-    """جلب حضور مدرس معين (اختياري حسب التاريخ)"""
-    conn = get_connection()
-    cur = conn.cursor()
-    if date:
-        cur.execute("""
-            SELECT st.*, s.student_name, u.name AS teacher_name
-            FROM student_tracking st
-            LEFT JOIN students s ON st.student_id = s.id
-            LEFT JOIN users u ON st.teacher_id = u.id
-            WHERE st.teacher_id=%s AND st.date=%s
-        """, (teacher_id, date))
-    else:
-        cur.execute("""
-            SELECT st.*, s.student_name, u.name AS teacher_name
-            FROM student_tracking st
-            LEFT JOIN students s ON st.student_id = s.id
-            LEFT JOIN users u ON st.teacher_id = u.id
-            WHERE st.teacher_id=%s
-        """, (teacher_id,))
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
-    return rows
-
-
-def get_attendance_for_student_period(student_id, start_date, end_date):
-    """جلب حضور طالب معين خلال فترة زمنية محددة"""
-    conn = get_connection()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("""
         SELECT st.*, s.student_name, u.name AS teacher_name
         FROM student_tracking st
         LEFT JOIN students s ON st.student_id = s.id
         LEFT JOIN users u ON st.teacher_id = u.id
-        WHERE st.student_id=%s AND st.date BETWEEN %s AND %s
-        ORDER BY st.date DESC
-    """, (student_id, start_date, end_date))
+        WHERE st.school_id=%s AND st.date=%s
+        ORDER BY s.student_name
+    """, (school_id, date_val))
     rows = cur.fetchall()
     cur.close()
     conn.close()
@@ -130,11 +91,13 @@ def get_attendance_for_student_period(student_id, start_date, end_date):
 
 
 def update_attendance(att_id, attendance=None, note=None):
-    """تحديث حالة حضور"""
+    """
+    ✏️ تحديث حالة الحضور / الملاحظة
+    """
     conn = get_connection()
-    cur = conn.cursor()
-    updates, values = [], []
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
+    updates, values = [], []
     if attendance:
         updates.append("attendance=%s")
         values.append(attendance)
@@ -142,35 +105,50 @@ def update_attendance(att_id, attendance=None, note=None):
         updates.append("note=%s")
         values.append(note)
 
-    if updates:
-        query = f"UPDATE student_tracking SET {', '.join(updates)} WHERE id=%s"
-        values.append(att_id)
+    if not updates:
+        return False
+
+    query = f"UPDATE student_tracking SET {', '.join(updates)} WHERE id=%s RETURNING id"
+    values.append(att_id)
+
+    try:
         cur.execute(query, tuple(values))
         conn.commit()
-
-    cur.close()
-    conn.close()
-    return True
+        return True
+    except Exception as e:
+        conn.rollback()
+        print("❌ خطأ أثناء التحديث:", e)
+        return False
+    finally:
+        cur.close()
+        conn.close()
 
 
 def delete_attendance(att_id):
-    """حذف سجل حضور"""
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("DELETE FROM student_tracking WHERE id=%s", (att_id,))
-    conn.commit()
-    cur.close()
-    conn.close()
-    return True
-
-
-def filter_attendance(student_id=None, school_id=None, teacher_id=None, start_date=None, end_date=None):
     """
-    دالة فلترة ذكية لجميع حالات البحث:
-    - حسب الطالب، المدرسة، المدرس، فترة زمنية
+    🗑️ حذف سجل حضور معين
     """
     conn = get_connection()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        cur.execute("DELETE FROM student_tracking WHERE id=%s RETURNING id", (att_id,))
+        conn.commit()
+        return True
+    except Exception as e:
+        conn.rollback()
+        print("❌ خطأ أثناء الحذف:", e)
+        return False
+    finally:
+        cur.close()
+        conn.close()
+
+
+def filter_attendance(school_id=None, student_id=None, start_date=None, end_date=None):
+    """
+    🔍 فلترة حسب المدرسة أو الطالب أو الفترة الزمنية
+    """
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
     query = """
         SELECT st.*, s.student_name, u.name AS teacher_name
@@ -181,15 +159,12 @@ def filter_attendance(student_id=None, school_id=None, teacher_id=None, start_da
     """
     params = []
 
-    if student_id:
-        query += " AND st.student_id=%s"
-        params.append(student_id)
     if school_id:
         query += " AND st.school_id=%s"
         params.append(school_id)
-    if teacher_id:
-        query += " AND st.teacher_id=%s"
-        params.append(teacher_id)
+    if student_id:
+        query += " AND st.student_id=%s"
+        params.append(student_id)
     if start_date and end_date:
         query += " AND st.date BETWEEN %s AND %s"
         params.extend([start_date, end_date])
