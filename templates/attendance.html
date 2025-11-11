@@ -2,71 +2,87 @@
 
 {% block content %}
 <div class="container mt-4 header-row">
+    <!-- ✅ التاريخ + اختيار تاريخ آخر -->
     <div class="d-flex justify-content-between mb-3 align-items-center">
-        <div class="d-flex align-items-center">
-            <label for="attendanceDate" class="me-2">📅 التاريخ:</label>
-            <input type="date" id="attendanceDate" class="form-control" 
-                   value="{{ today }}" style="width: 180px;">
+        <div class="d-flex align-items-center gap-2">
+            <span class="fw-semibold">📅 التاريخ:</span>
+            <select id="dateSelect" class="form-select d-inline-block w-auto">
+                <option value="{{ today }}" selected>{{ today }}</option>
+                {% for d in date_list %}
+                <option value="{{ d }}">{{ d }}</option>
+                {% endfor %}
+            </select>
         </div>
 
+        <!-- ✅ فلاتر الصف والشعبة -->
         <div>
-            <label>الصف:</label>
+            <label class="fw-semibold">الصف:</label>
             <select id="classSelect" class="form-select d-inline-block w-auto">
                 <option value="">اختر صف</option>
                 {% for cls in classes %}
-                <option value="{{ cls.id }}">{{ cls.class_name }}</option>
+                <option value="{{ cls.class_name }}">{{ cls.class_name }}</option>
                 {% endfor %}
             </select>
 
-            <label>الشعبة:</label>
+            <label class="fw-semibold">الشعبة:</label>
             <select id="sectionSelect" class="form-select d-inline-block w-auto">
                 <option value="">اختر شعبة</option>
-                {% for sec in sections %}
-                <option value="{{ sec.id }}">{{ sec.section }}</option>
+                {% for sec in classes|unique(attribute='section') %}
+                <option value="{{ sec.section }}">{{ sec.section }}</option>
                 {% endfor %}
             </select>
         </div>
     </div>
 
+    <!-- ✅ جدول الحضور -->
     <div class="table-responsive">
-        <table class="table table-bordered text-center" id="attendanceTable">
+        <table class="table table-bordered text-center align-middle" id="attendanceTable">
             <thead class="table-light sticky-top">
                 <tr>
-                    <th style="width:40px">#</th>
+                    <th style="width: 50px;">#</th>
                     <th>اسم الطالب</th>
                     <th>حاضر</th>
                     <th>متأخر</th>
                     <th>غائب</th>
                 </tr>
             </thead>
-            <tbody id="attendanceBody">
-                {% for student in students|sort(attribute='student_name') %}
+            <tbody>
+                {% for student in students %}
                 <tr 
-                    data-class="{{ student.class_id }}" 
-                    data-section="{{ student.section_id }}"
-                    data-school="{{ session.get('school_id', '') }}"
-                    data-teacher="{{ session.get('user_id', '') }}"
+                    data-class="{{ student.class_name }}"
+                    data-section="{{ student.section }}"
+                    data-school="{{ session['user'].school_id if session['user'] else '' }}"
+                    data-teacher="{{ session['user'].id if session['user'] else '' }}"
                     data-date="{{ today }}"
                 >
                     <td class="row-number">{{ loop.index }}</td>
                     <td>{{ student.student_name }}</td>
+
+                    <!-- ✅ حاضر -->
                     <td>
-                        <input type="checkbox" class="attendance-checkbox" 
-                               data-student-id="{{ student.student_id }}" 
+                        <input type="checkbox"
+                               class="attendance-checkbox form-check-input"
+                               data-student-id="{{ student.student_id }}"
                                data-status="present"
-                               {% if student.attendance_status == 'present' %}checked{% endif %}>
+                               {% if student.attendance == 'present' %}checked{% endif %}>
                     </td>
+
+                    <!-- ✅ متأخر -->
                     <td>
-                        <input type="checkbox" class="attendance-checkbox" 
-                               data-student-id="{{ student.student_id }}" 
+                        <input type="checkbox"
+                               class="attendance-checkbox form-check-input"
+                               data-student-id="{{ student.student_id }}"
                                data-status="late"
-                               {% if student.attendance_status == 'late' %}checked{% endif %}>
+                               {% if student.attendance == 'late' %}checked{% endif %}>
                     </td>
+
+                    <!-- ✅ غائب -->
                     <td>
-                        <input type="checkbox" class="attendance-checkbox" 
-                               data-student-id="{{ student.student_id }}" 
+                        <input type="checkbox"
+                               class="attendance-checkbox form-check-input"
+                               data-student-id="{{ student.student_id }}"
                                data-status="absent"
-                               {% if student.attendance_status == 'absent' %}checked{% endif %}>
+                               {% if student.attendance == 'absent' %}checked{% endif %}>
                     </td>
                 </tr>
                 {% endfor %}
@@ -75,5 +91,6 @@
     </div>
 </div>
 
+<!-- ✅ سكربت JS -->
 <script src="{{ url_for('static', filename='js/attendance_table.js') }}"></script>
 {% endblock %}

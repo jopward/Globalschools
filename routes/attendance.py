@@ -31,83 +31,79 @@ def attendance_page():
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
     try:
+        # 🔹 جلب الصفوف والشعب من جدول teacher_classes
+        cur.execute("""
+            SELECT id, class_name, section, period
+            FROM teacher_classes
+            WHERE school_id = %s
+            ORDER BY class_name
+        """, (school_id,))
+        classes = cur.fetchall()
+
+        # 🔹 جلب الطلاب
         if role == "admin":
-            # 🔹 المدير يرى كل طلاب المدرسة
             cur.execute("""
                 SELECT 
                     s.id AS student_id,
                     s.student_name,
-                    s.class_id,
                     tc.class_name,
                     tc.section,
-                    tc.period,
-                    st.id AS tracking_id,
                     st.attendance,
-                    st.note,
-                    st.date,
-                    st.teacher_id
+                    st.id AS tracking_id,
+                    st.note
                 FROM students s
                 LEFT JOIN teacher_classes tc ON s.class_id = tc.id
                 LEFT JOIN student_tracking st 
-                    ON st.student_id = s.id 
+                    ON st.student_id = s.id
                     AND st.school_id = %s
-                    AND (st.date = %s OR st.date IS NULL)
+                    AND st.date = %s
                 WHERE s.school_id = %s
                 ORDER BY tc.class_name, s.student_name
             """, (school_id, today, school_id))
         else:
-            # 🔹 المعلم يرى فقط طلابه من الشعب المسندة له
             cur.execute("""
                 SELECT 
                     s.id AS student_id,
                     s.student_name,
-                    s.class_id,
                     tc.class_name,
                     tc.section,
-                    tc.period,
-                    st.id AS tracking_id,
                     st.attendance,
-                    st.note,
-                    st.date,
-                    st.teacher_id
+                    st.id AS tracking_id,
+                    st.note
                 FROM students s
                 LEFT JOIN teacher_classes tc ON s.class_id = tc.id
                 LEFT JOIN student_tracking st 
                     ON st.student_id = s.id
                     AND st.teacher_id = %s
                     AND st.school_id = %s
-                    AND (st.date = %s OR st.date IS NULL)
+                    AND st.date = %s
                 WHERE s.school_id = %s AND tc.teacher_id = %s
                 ORDER BY tc.class_name, s.student_name
             """, (user_id, school_id, today, school_id, user_id))
 
         students = cur.fetchall()
 
-        # 🔹 جلب الصفوف والشعب من جدول teacher_classes
+        # 🔹 جلب آخر 10 تواريخ فيها سجلات
         cur.execute("""
-            SELECT DISTINCT id, class_name, section, period
-            FROM teacher_classes
+            SELECT DISTINCT date 
+            FROM student_tracking 
             WHERE school_id = %s
-            ORDER BY class_name, section
+            ORDER BY date DESC
+            LIMIT 10
         """, (school_id,))
-        classes = cur.fetchall()
-
-        # 🔹 استخراج الشعب فقط لعرضها في القائمة المنسدلة
-        sections = [
-            {"id": c["id"], "section": c["section"], "class_name": c["class_name"]}
-            for c in classes if c.get("section")
-        ]
+        date_list = [row["date"].isoformat() for row in cur.fetchall()]
 
     finally:
         cur.close()
         conn.close()
 
+    # 🟢 تمرير كل القيم إلى القالب
     return render_template(
         "attendance.html",
         students=students,
         today=today,
         classes=classes,
-        sections=sections
+        date_list=date_list
     )
 
 
@@ -132,13 +128,13 @@ def update_attendance():
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
     try:
-        # 🧹 حذف أي سجل سابق لنفس الطالب في نفس اليوم والمعلم
+        # 🧹 حذف أي سجل سابق لنفس الطالب/المعلم في نفس اليوم
         cur.execute("""
             DELETE FROM student_tracking
             WHERE student_id = %s AND date = %s AND school_id = %s AND teacher_id = %s
         """, (student_id, date_val, school_id, teacher_id))
 
-        # ➕ إضافة السجل الجديد
+        # ➕ إدخال سجل جديد
         cur.execute("""
             INSERT INTO student_tracking (student_id, school_id, teacher_id, date, attendance, note)
             VALUES (%s, %s, %s, %s, %s, %s)
@@ -198,35 +194,27 @@ def filter_attendance():
 
     try:
         if role == "admin":
-            # 🔹 المدير يرى كل سجلات المدرسة
             cur.execute("""
                 SELECT 
                     st.*, 
                     s.student_name, 
-                    u.name AS teacher_name, 
                     tc.class_name, 
-                    tc.section,
-                    tc.period
+                    tc.section
                 FROM student_tracking st
                 LEFT JOIN students s ON st.student_id = s.id
-                LEFT JOIN users u ON st.teacher_id = u.id
                 LEFT JOIN teacher_classes tc ON s.class_id = tc.id
                 WHERE st.school_id = %s AND st.date = %s
                 ORDER BY s.student_name
             """, (school_id, date_val))
         else:
-            # 🔹 المعلم يرى فقط سجلاته
             cur.execute("""
                 SELECT 
                     st.*, 
                     s.student_name, 
-                    u.name AS teacher_name, 
                     tc.class_name, 
-                    tc.section,
-                    tc.period
+                    tc.section
                 FROM student_tracking st
                 LEFT JOIN students s ON st.student_id = s.id
-                LEFT JOIN users u ON st.teacher_id = u.id
                 LEFT JOIN teacher_classes tc ON s.class_id = tc.id
                 WHERE st.school_id = %s AND st.date = %s AND st.teacher_id = %s
                 ORDER BY s.student_name
